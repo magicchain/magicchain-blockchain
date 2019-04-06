@@ -71,6 +71,7 @@ contract MagicChain223 {
         _firstBlock=block.number;
         _coldStorage=address(0);
         _coldStorageOut=0;
+        _balances[_owner]=_initialSupply;
     }
 
     function setColdStorage(address _newColdStorage) public {
