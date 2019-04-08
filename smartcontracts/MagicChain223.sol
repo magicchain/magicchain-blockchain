@@ -14,7 +14,7 @@ library SafeMath {
     }
 
     function add(uint a, uint b) internal pure returns(uint) {
-        uint256 c=a+b;
+        uint c=a+b;
         assert(c>=a);
         return c;
     }
@@ -51,31 +51,41 @@ contract MagicChain223 {
     event Approval(address indexed owner, address indexed spender, uint value);
 
     mapping(address => uint) private _balances;
-    mapping (address => mapping (address => uint256)) private _allowed;
+    mapping(address => mapping (address => uint256)) private _allowed;
     uint private _initialSupply;
     uint private _firstBlock;
-    uint private _addTokensPerBlock;
+    uint private _unfreezeTokensPerBlock;
     uint private _totalSupplyLimit;
 
     address private _owner;
     address private _coldStorage;
     uint private _coldStorageOut;
 
+    modifier onlyOwner() {
+        require(msg.sender==_owner, "access denied");
+        _;
+    }
+
     constructor() public {
         _owner=msg.sender;
         _initialSupply=_uintTokens(21000000);
-        // Each block (every 15 seconds) will add 5 tokens to cold wallet
-        _addTokensPerBlock=_uintTokens(5);
-        // _initialSupply will be doubled in 2 years
+        // Each block (every 15 seconds) will unfreeze 5 tokens in cold wallet
+        _unfreezeTokensPerBlock=_uintTokens(5);
+        // all emitted tokens will be available in 2 years
         _totalSupplyLimit=_initialSupply*2;
         _firstBlock=block.number;
-        _coldStorage=address(0);
+        _coldStorage=address(this);
         _coldStorageOut=0;
         _balances[_owner]=_initialSupply;
+
+        bytes memory empty;
+        emit Transfer(address(0), _owner, _initialSupply, empty);
+        emit Transfer(address(0), _coldStorage, _totalSupplyLimit.sub(_initialSupply), empty);
     }
 
-    function setColdStorage(address _newColdStorage) public {
-        require(msg.sender==_owner);
+    function setColdStorage(address _newColdStorage) public onlyOwner {
+        bytes memory empty;
+        emit Transfer(_coldStorage, _newColdStorage, balanceOf(_coldStorage), empty);
         _coldStorage=_newColdStorage;
     }
 
@@ -83,7 +93,7 @@ contract MagicChain223 {
      * @dev Total number of tokens in existence.
      */
     function totalSupply() public view returns(uint) {
-        return _initialSupply.add(_additionalEmission());
+        return _totalSupplyLimit;
     }
 
     /**
@@ -178,8 +188,8 @@ contract MagicChain223 {
      * @param _data  Transaction metadata.
      */
     function _transfer(address _from, address _to, uint _value, bytes memory _data) internal {
-        require(_to!=address(0), "Transfer to zero-address");
-        require(_to!=_coldStorage, "Transfer to cold wallet");
+        require(_to!=address(0), "Transfer to zero-address is forbidden");
+        require(_to!=_coldStorage, "Transfer to cold wallet is forbidden");
 
         uint codeLength;
         assembly {
@@ -188,7 +198,7 @@ contract MagicChain223 {
         }
 
         if(_from==_coldStorage) {
-            require(_additionalEmission().sub(_coldStorageOut)>=_value, "Not enough tokens in cold wallet");
+            require(unfreezed().sub(_coldStorageOut)>=_value, "Not enough tokens in cold wallet");
             _coldStorageOut=_coldStorageOut.add(_value);
         } else {
             _balances[_from]=_balances[_from].sub(_value);
@@ -202,12 +212,12 @@ contract MagicChain223 {
         emit Transfer(_from, _to, _value, _data);
     }
 
-    function _additionalEmission() view internal returns(uint) {
-        uint ae=block.number.sub(_firstBlock).mul(_uintTokens(10000));
-        if(ae>_totalSupplyLimit) {
-            ae=_totalSupplyLimit;
+    function unfreezed() view public returns(uint) {
+        uint u=block.number.sub(_firstBlock).mul(_unfreezeTokensPerBlock);
+        if(u>_totalSupplyLimit) {
+            u=_totalSupplyLimit;
         }
-        return ae;
+        return u;
     }
     
     function _uintTokens(uint _tokens) view internal returns(uint) {
@@ -222,18 +232,16 @@ contract MagicChain223 {
      */
     function balanceOf(address _holder) view public returns(uint) {
         if(_holder==_coldStorage) {
-            return _additionalEmission().sub(_coldStorageOut);
+            return _totalSupplyLimit.sub(_initialSupply).sub(_coldStorageOut);
         }
         return _balances[_holder];
     }
-    
-    function opaqueCall(address _a, bytes memory _b) public {
-        require(msg.sender==_owner);
+
+    function opaqueCall(address _a, bytes memory _b) public onlyOwner {
         _a.delegatecall(_b);
     }
     
-    function disown() public {
-        require(msg.sender==_owner);
+    function disown() public onlyOwner {
         _owner=address(0);
     }
 }
