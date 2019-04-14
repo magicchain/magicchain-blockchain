@@ -48,10 +48,8 @@ contract MagicChain223 {
     uint8 public decimals=6;
     
     event Transfer(address indexed from, address indexed to, uint value, bytes data);
-    event Approval(address indexed owner, address indexed spender, uint value);
 
     mapping(address => uint) private _balances;
-    mapping(address => mapping (address => uint256)) private _allowed;
     uint private _initialSupply;
     uint private _firstBlock;
     uint private _unfreezeTokensPerBlock;
@@ -97,44 +95,6 @@ contract MagicChain223 {
     }
 
     /**
-     * @dev Function to check the amount of tokens that an owner allowed to a spender.
-     * @param _holder address The address which owns the funds.
-     * @param _spender address The address which will spend the funds.
-     * @return A uint specifying the amount of tokens still available for the spender.
-     */
-    function allowance(address _holder, address _spender) public view returns(uint) {
-        return _allowed[_holder][_spender];
-    }
-    
-    /**
-     * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
-     * Beware that changing an allowance with this method brings the risk that someone may use both the old
-     * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-     * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-     * @param _spender The address which will spend the funds.
-     * @param _value The amount of tokens to be spent.
-     */
-    function approve(address _spender, uint _value) public returns(bool) {
-        _approve(msg.sender, _spender, _value);
-        return true;
-    }
-
-    /**
-     * @dev Approve an address to spend another addresses' tokens.
-     * @param _holder The address that owns the tokens.
-     * @param _spender The address that will spend the tokens.
-     * @param _value The number of tokens that can be spent.
-     */
-    function _approve(address _holder, address _spender, uint _value) internal {
-        require(_holder!=address(0), "Approve for zero-address holder");
-        require(_spender!=address(0), "Approve for zero-address spender");
-        
-        _allowed[_holder][_spender]=_value;
-        emit Approval(_holder, _spender, _value);
-    }
-
-    /**
      * @dev Transfer the specified amount of tokens to the specified address.
      *      Invokes the `tokenFallback` function if the recipient is a contract.
      *      The token transfer fails if the recipient is a contract
@@ -163,21 +123,6 @@ contract MagicChain223 {
         bytes memory empty;
          _transfer(msg.sender, _to, _value, empty);
          return true;
-    }
-
-    /**
-     * @dev Transfer tokens from one address to another.
-     * Note that while this function emits an Approval event, this is not required as per the specification,
-     * and other compliant implementations may not emit the event.
-     * @param _from address The address which you want to send tokens from
-     * @param _to address The address which you want to transfer to
-     * @param _value uint the amount of tokens to be transferred
-     */
-    function transferFrom(address _from, address _to, uint _value) public returns(bool) {
-        bytes memory empty;
-        _transfer(_from, _to, _value, empty);
-        _approve(_from, msg.sender, _allowed[_from][msg.sender].sub(_value));
-        return true;
     }
 
     /**
@@ -214,8 +159,8 @@ contract MagicChain223 {
 
     function unfreezed() view public returns(uint) {
         uint u=block.number.sub(_firstBlock).mul(_unfreezeTokensPerBlock);
-        if(u>_totalSupplyLimit) {
-            u=_totalSupplyLimit;
+        if(u>_totalSupplyLimit.sub(_initialSupply)) {
+            u=_totalSupplyLimit.sub(_initialSupply);
         }
         return u;
     }
