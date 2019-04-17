@@ -415,33 +415,6 @@ contract ERC721 is Owned, ERC165, IERC721 {
     }
 
     /**
-     * @dev Internal function to burn a specific token.
-     * Reverts if the token does not exist.
-     * Deprecated, use _burn(uint256) instead.
-     * @param owner owner of the token to burn
-     * @param tokenId uint256 ID of the token being burned
-     */
-    function _burn(address owner, uint256 tokenId) internal {
-        require(ownerOf(tokenId) == owner);
-
-        _clearApproval(tokenId);
-
-        _ownedTokensCount[owner].decrement();
-        _tokenOwner[tokenId] = address(0);
-
-        emit Transfer(owner, address(0), tokenId);
-    }
-
-    /**
-     * @dev Internal function to burn a specific token.
-     * Reverts if the token does not exist.
-     * @param tokenId uint256 ID of the token being burned
-     */
-    function _burn(uint256 tokenId) internal {
-        _burn(ownerOf(tokenId), tokenId);
-    }
-
-    /**
      * @dev Internal function to transfer ownership of a given token ID to another address.
      * As opposed to transferFrom, this imposes no restrictions on msg.sender.
      * @param from current owner of the token
@@ -622,22 +595,6 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
         _tokenURIs[tokenId] = uri;
     }
 
-    /**
-     * @dev Internal function to burn a specific token.
-     * Reverts if the token does not exist.
-     * Deprecated, use _burn(uint256) instead.
-     * @param owner owner of the token to burn
-     * @param tokenId uint256 ID of the token being burned by the msg.sender
-     */
-    function _burn(address owner, uint256 tokenId) internal {
-        super._burn(owner, tokenId);
-
-        // Clear metadata (if any)
-        if (bytes(_tokenURIs[tokenId]).length != 0) {
-            delete _tokenURIs[tokenId];
-        }
-    }
-    
     /**
      * @dev Function to mint tokens.
      * @param to The address that will receive the minted tokens.
