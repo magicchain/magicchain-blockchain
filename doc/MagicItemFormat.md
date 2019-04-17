@@ -28,6 +28,7 @@ No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 If the number of extensions is not zero, then an array of extensions follows. Each item of array has the structure:
 
 No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
+--------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
 -|-|14|King of extension of specified class|SHOULD be constant
 -|-|6|Level of extension|SHOULD NOT descrease
@@ -37,6 +38,7 @@ No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 Continuos of array of extensions:
 
 No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
+--------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
 -|-|14|King of extension of specified class|SHOULD be constant
 -|-|6|Level of extension|SHOULD NOT descrease
