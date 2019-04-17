@@ -8,7 +8,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 Every magic item content described as 5 words uint256. All unused bits MUST be set to zero.
 
-# Format in detailes
+# Format in details
 
 ## Word 1
 
@@ -30,7 +30,7 @@ If the number of extensions is not zero, then an array of extensions follows. Ea
 No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 --------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
--|-|14|King of extension of specified class|SHOULD be constant
+-|-|14|Kind of extension of specified class|SHOULD be constant
 -|-|6|Level of extension|SHOULD NOT descrease
 
 ## Word 2
@@ -40,7 +40,7 @@ Continuos of array of extensions:
 No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 --------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
--|-|14|King of extension of specified class|SHOULD be constant
+-|-|14|Kind of extension of specified class|SHOULD be constant
 -|-|6|Level of extension|SHOULD NOT descrease
 
 ## Word 3
