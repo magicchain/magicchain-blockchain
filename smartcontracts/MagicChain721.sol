@@ -463,11 +463,22 @@ contract ERC721 is Owned, ERC165, IERC721 {
  */
 contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
 
+    struct MagicItem {
+        uint256 b0;
+        uint256 b1;
+        uint256 b2;
+        uint256 b3;
+        uint256 b4;
+    }
+
     string constant public _name = "MagicChain";
     string constant public _symbol = "MCI";
 
     // Optional mapping for token URIs
     mapping(uint256 => string) private _tokenURIs;
+
+    // Mapping for tokens content
+    mapping(uint256 => MagicItem) private _tokenContent;
 
     bytes4 private constant _INTERFACE_ID_ERC721_METADATA = 0x5b5e139f;
     /*
@@ -528,8 +539,34 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      * @param tokenId The token id to mint.
      * @return A boolean that indicates if the operation was successful.
      */
-    function mint(address to, uint256 tokenId) public onlyOwner returns (bool) {
+    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4)
+    public onlyOwner returns (bool) {
         _mint(to, tokenId);
+// TODO! Check for rare magic item, which can be minted only before sealing
+        _tokenContent[tokenId]=MagicItem(b0, b1, b2, b3, b4);
         return true;
+    }
+    
+    /**
+     * @dev Returns content for a given token ID.
+     * Throws if the token ID does not exist.
+     * @param tokenId uint256 ID of the token to query
+     */
+    function tokenContent(uint256 tokenId) external view returns (uint256, uint256, uint256, uint256, uint256) {
+        require(_exists(tokenId));
+        MagicItem memory item = _tokenContent[tokenId];
+        return (item.b0, item.b1, item.b2, item.b3, item.b4);
+    }
+    
+    /**
+     * @dev Function to set the token content for a given token.
+     * Reverts if the token ID does not exist.
+     * @param tokenId uint256 ID of the token to set its content
+     */
+    function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4) onlyOwner public {
+        require(_exists(tokenId));
+        MagicItem memory item = MagicItem(b0, b1, b2, b3, b4);
+// TODO! Need to check parameters, which can't be changed
+        _tokenContent[tokenId] = item;
     }
 }
