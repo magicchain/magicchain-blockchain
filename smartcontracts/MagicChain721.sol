@@ -29,28 +29,8 @@ library Counters {
     }
 
     function decrement(Counter storage counter) internal {
-        assert(counter._value>0);
+        require(counter._value>0);
         counter._value -= 1;
-    }
-}
-
-
-/**
- * Utility library of inline functions on addresses
- */
-library Address {
-    /**
-     * Returns whether the target address is a contract
-     * @dev This function will return false if invoked during the constructor of a contract,
-     * as the code is not actually created until after the constructor finishes.
-     * @param account address of the account to check
-     * @return whether the target address is a contract
-     */
-    function isContract(address account) internal view returns (bool) {
-        uint256 size;
-        // See https://ethereum.stackexchange.com/a/14016/36603
-        assembly { size := extcodesize(account) }
-        return size > 0;
     }
 }
 
@@ -121,6 +101,17 @@ contract IERC721 is IERC165 {
 
 
 /**
+ * @title ERC-721 Non-Fungible Token Standard, optional metadata extension
+ * @dev See https://eips.ethereum.org/EIPS/eip-721
+ */
+contract IERC721Metadata is IERC721 {
+    function name() external view returns (string memory);
+    function symbol() external view returns (string memory);
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+
+
+/**
  * @title ERC165
  * @author Matt Condon (@shrugs)
  * @dev Implements ERC165 using a lookup table.
@@ -162,13 +153,38 @@ contract ERC165 is IERC165 {
 }
 
 
+contract Owned {
+
+    address public owner;
+    address public candidate;
+
+    constructor () public {
+        owner = msg.sender;
+    }
+
+    modifier onlyOwner {
+        require(owner == msg.sender);
+        _;
+    }
+
+    function changeOwner(address _owner) onlyOwner public {
+        candidate = _owner;
+    }
+
+    function confirmOwner() public {
+        require(candidate == msg.sender);
+        owner = candidate;
+        delete candidate;
+    }
+}
+
+
 /**
- * @title ERC721 Non-Fungible Token Standard basic implementation
+ * @title ERC721 Token implementation
  * @dev see https://eips.ethereum.org/EIPS/eip-721
  */
-contract ERC721 is ERC165, IERC721 {
+contract ERC721 is Owned, ERC165, IERC721 {
     using Counters for Counters.Counter;
-    using Address for address;
 
     // Equals to `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
     // which can be also obtained as `IERC721Receiver(0).onERC721Received.selector`
@@ -420,7 +436,10 @@ contract ERC721 is ERC165, IERC721 {
     function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory _data)
         internal returns (bool)
     {
-        if (!to.isContract()) {
+        uint256 size;
+        // See https://ethereum.stackexchange.com/a/14016/36603
+        assembly { size := extcodesize(to) }
+        if (size == 0) {
             return true;
         }
 
@@ -436,5 +455,97 @@ contract ERC721 is ERC165, IERC721 {
         if (_tokenApprovals[tokenId] != address(0)) {
             _tokenApprovals[tokenId] = address(0);
         }
+    }
+}
+
+/**
+ * @title MagicChain ERC721 Token implementation
+ */
+contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
+
+    string constant private _name = "MagicChain";
+    string constant private _symbol = "MCI";
+
+    // Optional mapping for token URIs
+    mapping(uint256 => string) private _tokenURIs;
+
+    bytes4 private constant _INTERFACE_ID_ERC721_METADATA = 0x5b5e139f;
+    /*
+     * 0x5b5e139f ===
+     *     bytes4(keccak256('name()')) ^
+     *     bytes4(keccak256('symbol()')) ^
+     *     bytes4(keccak256('tokenURI(uint256)'))
+     */
+
+    /**
+     * @dev Constructor function
+     */
+    constructor () public {
+        // register the supported interfaces to conform to ERC721 via ERC165
+        _registerInterface(_INTERFACE_ID_ERC721_METADATA);
+    }
+
+    /**
+     * @dev Gets the token name.
+     * @return string representing the token name
+     */
+    function name() external view returns (string memory) {
+        return _name;
+    }
+
+    /**
+     * @dev Gets the token symbol.
+     * @return string representing the token symbol
+     */
+    function symbol() external view returns (string memory) {
+        return _symbol;
+    }
+
+    /**
+     * @dev Returns an URI for a given token ID.
+     * Throws if the token ID does not exist. May return an empty string.
+     * @param tokenId uint256 ID of the token to query
+     */
+    function tokenURI(uint256 tokenId) external view returns (string memory) {
+        require(_exists(tokenId));
+        return _tokenURIs[tokenId];
+    }
+
+    /**
+     * @dev Internal function to set the token URI for a given token.
+     * Reverts if the token ID does not exist.
+     * @param tokenId uint256 ID of the token to set its URI
+     * @param uri string URI to assign
+     */
+    function _setTokenURI(uint256 tokenId, string memory uri) internal {
+        require(_exists(tokenId));
+        _tokenURIs[tokenId] = uri;
+    }
+
+    /**
+     * @dev Internal function to burn a specific token.
+     * Reverts if the token does not exist.
+     * Deprecated, use _burn(uint256) instead.
+     * @param owner owner of the token to burn
+     * @param tokenId uint256 ID of the token being burned by the msg.sender
+     */
+    function _burn(address owner, uint256 tokenId) internal {
+        super._burn(owner, tokenId);
+
+        // Clear metadata (if any)
+        if (bytes(_tokenURIs[tokenId]).length != 0) {
+            delete _tokenURIs[tokenId];
+        }
+    }
+    
+    /**
+     * @dev Function to mint tokens.
+     * @param to The address that will receive the minted tokens.
+     * @param tokenId The token id to mint.
+     * @return A boolean that indicates if the operation was successful.
+     */
+    function mint(address to, uint256 tokenId) public onlyOwner returns (bool) {
+        _mint(to, tokenId);
+        return true;
     }
 }
