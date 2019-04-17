@@ -192,6 +192,9 @@ contract ERC721 is Owned, ERC165, IERC721 {
 
     // Mapping from token ID to owner
     mapping (uint256 => address) private _tokenOwner;
+    
+    // Mapping from token ID to enabling operations time
+    mapping (uint256 => uint256) private _tokenEnableTime;
 
     // Mapping from token ID to approved address
     mapping (uint256 => address) private _tokenApprovals;
@@ -347,6 +350,42 @@ contract ERC721 is Owned, ERC165, IERC721 {
         address owner = _tokenOwner[tokenId];
         return owner != address(0);
     }
+    
+    /**
+     * @dev Returns whether the specified token available for operations
+     * @param tokenId uint256 ID of the token
+     * @return bool whether the token available for operations
+     */
+    function _enabled(uint256 tokenId) internal view returns (bool) {
+        if (!_exists(tokenId)) {
+            return false;
+        }
+        
+        uint256 enableTime = _tokenEnableTime[tokenId];
+        return enableTime < now;
+    }
+
+    /**
+     * @dev Set enabled time for the specified token
+     * @param tokenId uint256 ID of the token
+     * @param enableTime uint256 time of start of token availability
+     */
+    function _setEnabled(uint256 tokenId, uint256 enableTime) internal returns (bool) {
+        if (!_exists(tokenId)) {
+            return false;
+        }
+        
+        _tokenEnableTime[tokenId] = enableTime;
+        return true;
+    }
+
+    /**
+     * @dev Get enable time for the specified token
+     * @param tokenId uint256 ID of the token
+     */
+    function enableTime(uint256 tokenId) view public returns (uint256) {
+        return _tokenEnableTime[tokenId];
+    }
 
     /**
      * @dev Returns whether the given spender can transfer a given token ID.
@@ -411,6 +450,7 @@ contract ERC721 is Owned, ERC165, IERC721 {
      * @param tokenId uint256 ID of the token to be transferred
      */
     function _transferFrom(address from, address to, uint256 tokenId) internal {
+        require(_enabled(tokenId));
         require(ownerOf(tokenId) == from);
         require(to != address(0));
 
@@ -580,13 +620,17 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      * @dev Function to mint tokens.
      * @param to The address that will receive the minted tokens.
      * @param tokenId The token id to mint.
+     * @param enableTime since enableTime token will become available.
      * @return A boolean that indicates if the operation was successful.
      */
-    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4)
+    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4, uint256 enableTime)
     public onlyOwner returns (bool) {
         MagicItemOps.MagicItem memory i = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
         require(!_sealed || !i.isEpicOrRare());
         _mint(to, tokenId);
+        if (enableTime > 0) {
+            _setEnabled(tokenId, enableTime);
+        }
         _tokenContent[tokenId] = i;
         return true;
     }
