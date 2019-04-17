@@ -69,7 +69,9 @@ To control content of magic items contract MagicChain721 functions can be used.
      * @param enableTime since enableTime token will become available.
      * @return A boolean that indicates if the operation was successful.
      */
-    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4, uint256 enableTime) public onlyOwner returns (bool);
+    function mint(address to, uint256 tokenId,
+                  uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4,
+                  string memory uri, uint256 enableTime) public onlyOwner returns (bool);
 
 ## Get content for specified token
 
@@ -87,4 +89,5 @@ To control content of magic items contract MagicChain721 functions can be used.
      * Reverts if the token ID does not exist.
      * @param tokenId uint256 ID of the token to set its content
      */
-    function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4) onlyOwner public;
+    function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4)
+    onlyOwner public;
