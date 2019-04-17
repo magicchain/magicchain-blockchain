@@ -599,10 +599,11 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      * @dev Function to mint tokens.
      * @param to The address that will receive the minted tokens.
      * @param tokenId The token id to mint.
+     * @param uri string URI to assign
      * @param enableTime since enableTime token will become available.
      * @return A boolean that indicates if the operation was successful.
      */
-    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4, uint256 enableTime)
+    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4, string memory uri, uint256 enableTime)
     public onlyOwner returns (bool) {
         MagicItemOps.MagicItem memory i = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
         require(!_sealed || !i.isEpicOrRare());
@@ -610,6 +611,7 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
         if (enableTime > 0) {
             _setEnabled(tokenId, enableTime);
         }
+        _setTokenURI(tokenId, uri);
         _tokenContent[tokenId] = i;
         return true;
     }
