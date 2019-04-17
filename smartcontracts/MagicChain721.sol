@@ -519,20 +519,42 @@ library MagicItemOps {
     }
 
     function itemClass(MagicItem memory item) internal pure returns (uint8) {
-        return uint8(item.b0 & 0x1f);
+        return uint8(item.b0 & uint256(0x1f));
     }
     
     function itemType(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & 0xe0) >> 5);
+        return uint8((item.b0 & uint256(0xe0)) >> 5);
     }
     
     function isEpicOrRare(MagicItem memory item) internal pure returns (bool) {
         uint8 t = itemType(item);
-        return t == 1 || t == 2;
+        return (t == 1) || (t == 2);
+    }
+
+    function itemLevel(MagicItem memory item) internal pure returns (uint8) {
+        return uint8((item.b0 & (uint256(0x3f) << 75)) >> 75);
+    }
+
+    function itemExtensions(MagicItem memory item) internal pure returns (uint8) {
+        return uint8((item.b0 & (uint256(0xf) << 81)) >> 81);
     }
     
     function canBeChanged(MagicItem memory itemFrom, MagicItem memory itemTo) internal pure returns (bool) {
-        // TOOD! implement checking
+        // Constant part of MagicItem content
+        if ((itemFrom.b0 & uint256(0x3fffff)) != (itemTo.b0 & uint256(0x3fffff))) {
+            return false;
+        }
+
+        // Level of MagicItem can increase only
+        if (itemLevel(itemFrom) > itemLevel(itemTo)) {
+            return false;
+        }
+
+        // Amount of extensions of MagicItem can increase only
+        if (itemExtensions(itemFrom) > itemExtensions(itemTo)) {
+            return false;
+        }
+
         return true;
     }
 }
