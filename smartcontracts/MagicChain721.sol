@@ -504,7 +504,8 @@ contract ERC721 is Owned, ERC165, IERC721 {
 
 
 /**
- * @dev Library for MagicItems operations
+ * @title Library for MagicItems operations
+ * @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
  */
 library MagicItemOps {
     /**
