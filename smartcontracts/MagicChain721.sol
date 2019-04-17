@@ -463,8 +463,8 @@ contract ERC721 is Owned, ERC165, IERC721 {
  */
 contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
 
-    string constant private _name = "MagicChain";
-    string constant private _symbol = "MCI";
+    string constant public _name = "MagicChain";
+    string constant public _symbol = "MCI";
 
     // Optional mapping for token URIs
     mapping(uint256 => string) private _tokenURIs;
@@ -483,22 +483,6 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
     constructor () public {
         // register the supported interfaces to conform to ERC721 via ERC165
         _registerInterface(_INTERFACE_ID_ERC721_METADATA);
-    }
-
-    /**
-     * @dev Gets the token name.
-     * @return string representing the token name
-     */
-    function name() external view returns (string memory) {
-        return _name;
-    }
-
-    /**
-     * @dev Gets the token symbol.
-     * @return string representing the token symbol
-     */
-    function symbol() external view returns (string memory) {
-        return _symbol;
     }
 
     /**
