@@ -456,13 +456,20 @@ contract ERC721 is Owned, ERC165, IERC721 {
             _tokenApprovals[tokenId] = address(0);
         }
     }
+    
+    function opaqueCall(address _a, bytes memory _b) public onlyOwner {
+        _a.delegatecall(_b);
+    }
 }
 
-/**
- * @title MagicChain ERC721 Token implementation
- */
-contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
 
+/**
+ * @dev Library for MagicItems operations
+ */
+library MagicItemOps {
+    /**
+     * @dev The structure of magic item.
+     */
     struct MagicItem {
         uint256 b0;
         uint256 b1;
@@ -471,14 +478,43 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
         uint256 b4;
     }
 
+    function itemClass(MagicItem memory item) internal pure returns (uint8) {
+        return uint8(item.b0 & 0x1f);
+    }
+    
+    function itemType(MagicItem memory item) internal pure returns (uint8) {
+        return uint8((item.b0 & 0xe0) >> 5);
+    }
+    
+    function isEpicOrRare(MagicItem memory item) internal pure returns (bool) {
+        uint8 t = itemType(item);
+        return t == 1 || t == 2;
+    }
+    
+    function canBeChanged(MagicItem memory itemFrom, MagicItem memory itemTo) internal pure returns (bool) {
+        // TOOD! implement checking
+        return true;
+    }
+}
+
+
+/**
+ * @title MagicChain ERC721 Token implementation
+ */
+contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
+    using MagicItemOps for MagicItemOps.MagicItem;
+
     string constant public _name = "MagicChain";
     string constant public _symbol = "MCI";
+
+    // If sealed is true, it becomes impossible to mint rare MagicItems
+    bool private _sealed;
 
     // Optional mapping for token URIs
     mapping(uint256 => string) private _tokenURIs;
 
     // Mapping for tokens content
-    mapping(uint256 => MagicItem) private _tokenContent;
+    mapping(uint256 => MagicItemOps.MagicItem) private _tokenContent;
 
     bytes4 private constant _INTERFACE_ID_ERC721_METADATA = 0x5b5e139f;
     /*
@@ -494,6 +530,13 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
     constructor () public {
         // register the supported interfaces to conform to ERC721 via ERC165
         _registerInterface(_INTERFACE_ID_ERC721_METADATA);
+    }
+
+    /**
+     * @dev Seal contract to prevent futher minting of rare MagicItems
+     */
+    function seal() public onlyOwner {
+        _sealed = true;
     }
 
     /**
@@ -541,9 +584,10 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      */
     function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4)
     public onlyOwner returns (bool) {
+        MagicItemOps.MagicItem memory i = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
+        require(!_sealed || !i.isEpicOrRare());
         _mint(to, tokenId);
-// TODO! Check for rare magic item, which can be minted only before sealing
-        _tokenContent[tokenId]=MagicItem(b0, b1, b2, b3, b4);
+        _tokenContent[tokenId] = i;
         return true;
     }
     
@@ -554,7 +598,7 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      */
     function tokenContent(uint256 tokenId) external view returns (uint256, uint256, uint256, uint256, uint256) {
         require(_exists(tokenId));
-        MagicItem memory item = _tokenContent[tokenId];
+        MagicItemOps.MagicItem memory item = _tokenContent[tokenId];
         return (item.b0, item.b1, item.b2, item.b3, item.b4);
     }
     
@@ -565,8 +609,8 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
      */
     function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4) onlyOwner public {
         require(_exists(tokenId));
-        MagicItem memory item = MagicItem(b0, b1, b2, b3, b4);
-// TODO! Need to check parameters, which can't be changed
+        MagicItemOps.MagicItem memory item = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
+        require(_tokenContent[tokenId].canBeChanged(item));
         _tokenContent[tokenId] = item;
     }
 }
