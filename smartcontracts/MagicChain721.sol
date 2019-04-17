@@ -297,16 +297,13 @@ contract ERC721 is Owned, ERC165, IERC721 {
 
     /**
      * @dev Transfers the ownership of a given token ID to another address.
-     * Usage of this method is discouraged, use `safeTransferFrom` whenever possible.
-     * Requires the msg.sender to be the owner, approved, or operator.
+     * Calls safeTransferFrom, instead of ERC721 specification.
      * @param from current owner of the token
      * @param to address to receive the ownership of the given token ID
      * @param tokenId uint256 ID of the token to be transferred
      */
     function transferFrom(address from, address to, uint256 tokenId) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId));
-
-        _transferFrom(from, to, tokenId);
+        safeTransferFrom(from, to, tokenId, "");
     }
 
     /**
@@ -337,7 +334,9 @@ contract ERC721 is Owned, ERC165, IERC721 {
      * @param _data bytes data to send along with a safe transfer check
      */
     function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public {
-        transferFrom(from, to, tokenId);
+        require(_isApprovedOrOwner(msg.sender, tokenId));
+        _transferFrom(from, to, tokenId);
+
         require(_checkOnERC721Received(from, to, tokenId, _data));
     }
 
