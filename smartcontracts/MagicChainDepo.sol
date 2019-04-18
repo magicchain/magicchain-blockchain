@@ -39,6 +39,13 @@ interface AbstractDepositHost
 interface ERC223
 {
     function transfer(address _to, uint _value, bytes calldata _data) external returns(bool);
+    function transfer(address _to, uint _value) external returns(bool);
+}
+
+interface ERC721
+{
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes calldata _data) external payable;
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
 }
 
 contract DepositWallet
@@ -67,7 +74,20 @@ contract DepositWallet
         data[2]=byte(uint8(userid/(2**8)));
         data[3]=byte(uint8(userid));
 
-        require(ERC223(msg.sender).transfer(address(host), _value, data));
+        ERC223(msg.sender).transfer(address(host), _value, data);
+    }
+
+    function onERC721Received(address /*_operator*/, address /*from*/, uint256 _tokenId, bytes calldata /*_data*/) external returns (bytes4)
+    {
+        bytes memory data=new bytes(4);
+        data[0]=byte(uint8(userid/(2**24)));
+        data[1]=byte(uint8(userid/(2**16)));
+        data[2]=byte(uint8(userid/(2**8)));
+        data[3]=byte(uint8(userid));
+
+        ERC721(msg.sender).safeTransferFrom(address(this), address(host), _tokenId, data);
+
+        return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
     }
 }
 
@@ -79,6 +99,7 @@ contract DepositHost is Owned, AbstractDepositHost
 
     event ETHDeposit(uint32 userid, uint amountWei);
     event ERC223Deposit(address indexed contractAddress, uint32 userid, uint amount);
+    event ERC721Deposit(address indexed contractAddress, uint32 userid, uint256 tokenId);
     event NewDepositAddress(uint32 userid, address depositAddress);
 
     modifier onlyDepositMaster
@@ -127,8 +148,7 @@ contract DepositHost is Owned, AbstractDepositHost
 
     function tokenFallback(address /*_from*/, uint _value, bytes calldata _data) external
     {
-        bytes memory empty;
-        require(ERC223(msg.sender).transfer(forwardAddress, _value, empty));
+        ERC223(msg.sender).transfer(forwardAddress, _value);
 
         if(_data.length==4)
         {
@@ -138,5 +158,21 @@ contract DepositHost is Owned, AbstractDepositHost
                           uint8(byte(_data[3]));
             emit ERC223Deposit(msg.sender, userid, _value);
         }
+    }
+
+    function onERC721Received(address /*_operator*/, address /*from*/, uint256 _tokenId, bytes calldata _data) external returns (bytes4)
+    {
+        ERC721(msg.sender).safeTransferFrom(address(this), forwardAddress, _tokenId);
+
+        if(_data.length==4)
+        {
+            uint32 userid=uint8(byte(_data[0]))*(2**24)+
+                          uint8(byte(_data[1]))*(2**16)+
+                          uint8(byte(_data[2]))*(2**8)+
+                          uint8(byte(_data[3]));
+            emit ERC721Deposit(msg.sender, userid, _tokenId);
+        }
+
+        return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
     }
 }
