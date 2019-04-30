@@ -9,10 +9,6 @@ namespace DBankModel2.Modelling
 {
     public class StatPrinter 
     {
-        public decimal InitialSupply { get; set; } = 21000000;
-        public decimal UnfreezeTokensPerBlock { get; set; } = 5;
-        public decimal TotalSupplyLimit { get; set; } = 42000000;
-
         public static void PrintStates(string path, List<ColdStackingState> states, Settings settings)
         {
             var cutDecimalCoef = (decimal)Math.Pow(10, MagicChain223.decimals);
@@ -28,7 +24,7 @@ namespace DBankModel2.Modelling
             sb.AppendLine(PrintKeyValue("ColdPeriod, blocks", settings.ColdPeriodBlocks.ToString()));
             sb.AppendLine(PrintKeyValue("ColdPeriod, day", (settings.ColdPeriodBlocks * settings.BlockTimeSeconds / 60/60/24).ToString("F")));
             sb.AppendLine(PrintKeyValue("ModelPeriod, year", (settings.ModelPeriodSeconds / 31556926).ToString("F")));
-            sb.AppendLine(PrintKeyValue("HoldPercent", (settings.HoldPercent).ToString("P")));
+            sb.AppendLine(PrintKeyValue("HoldPercent", (settings.HoldPercent/100).ToString("P")));
             sb.AppendLine(PrintKeyValue("", ""));
             sb.AppendLine($"BlockNumber;Supply;StakingRewardPool;OnColdStacking;Date;RewardPercent");
             for (int i = 0; i < states.Count; i++)

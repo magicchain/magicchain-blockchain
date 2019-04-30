@@ -46,7 +46,7 @@ namespace DBankModel2.Blockchains
         public decimal UnfreezeTokensPerBlock => _unfreezeTokensPerBlock;
         
 
-        private decimal Unfreezed() 
+        public decimal Unfreezed() 
         {
             decimal u = ((decimal)_blockchain.Number.sub(_firstBlock)).mul(_unfreezeTokensPerBlock);
             if (u > _initialSupply)
@@ -62,7 +62,7 @@ namespace DBankModel2.Blockchains
                 throw new Exception("require failure");
         }
 
-        decimal UintTokens(decimal tokens)
+        private decimal UintTokens(decimal tokens)
         {
             return tokens * (int)Math.Pow(10, decimals);
         }

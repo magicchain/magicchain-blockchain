@@ -27,13 +27,14 @@ namespace DBankModel2
             var coldStackingModel = new ColdStackingModel(_settings,magicChain223, blockGenerator);
 
             var states = coldStackingModel.Run();
-            var path = "D:\\ColdStackingModel.csv";
+            var path = settings.OutputPath;
 
             StatPrinter.PrintStates(path, states, settings);
 
             Console.WriteLine("***** model process end *****");
             Console.WriteLine($"look at result here: {path}");
-            Console.ReadLine();
+            Console.WriteLine($"press any key to continue...");
+            Console.ReadKey();
         }
     }
 }

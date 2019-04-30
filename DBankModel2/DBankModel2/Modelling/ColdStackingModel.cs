@@ -33,7 +33,7 @@ namespace DBankModel2.Modelling
                 if (i != 0 && i % _settings.ColdPeriodBlocks == 0)
                 {
                     var stakingRewardPool = _magicChain223.Supply - prevSupply;
-                    var onColdStacking = prevSupply * _settings.HoldPercent;
+                    var onColdStacking = prevSupply * (_settings.HoldPercent / 100);
 
                     states.Add(new ColdStackingState()
                     {
@@ -41,7 +41,7 @@ namespace DBankModel2.Modelling
                         Supply = _magicChain223.Supply,
                         StakingRewardPool = stakingRewardPool,
                         OnColdStacking = onColdStacking,
-                        Percent = stakingRewardPool / prevSupply
+                        Percent = stakingRewardPool / onColdStacking
                     });
 
                     prevSupply = _magicChain223.Supply;
