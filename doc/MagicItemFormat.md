@@ -31,7 +31,6 @@ No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 --------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
 -|-|14|Kind of extension of specified class|SHOULD be constant
--|-|6|Level of extension|SHOULD NOT descrease
 
 ## Word 2
 
@@ -41,7 +40,6 @@ No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 --------|--------|--------|--------|--------
 -|-|4|Class of extension|SHOULD NOT descrease
 -|-|14|Kind of extension of specified class|SHOULD be constant
--|-|6|Level of extension|SHOULD NOT descrease
 
 ## Word 3
 
