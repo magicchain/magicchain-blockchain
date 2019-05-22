@@ -8,7 +8,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be
 interpreted as described in RFC 2119.
 
-# TODO: section title
+# Basics
 
 The protocol is based on JSON-RPC 2.0 with HTTP/1.x used as a transport. Both
 ends of communication MUST implement JSON-RPC 2.0 server since SERVER sends
@@ -16,11 +16,12 @@ notifications to its counterparty. There MUST be exactly one counterparty with
 static IP-address which is stored in the SERVER's configuration file. In
 contrast, single counterparty MAY communicate with multiple SERVERs.
 
-TODO: url 
+All RPC requests MUST be sent to HTTP URL: `http://.../mc/v1/api` using POST
+method. Content-Type header field MUST be set to `application/json`.
 
-TODO: POST, Content-Type
-
-TODO: Both positional and named parameters are accepted.
+Both positional and named parameters of JSON-RPC requests are supported by
+SERVER. Notification parameters (sent from the SERVER to its counterpart) are
+positional.
 
 # Security
 
@@ -73,7 +74,63 @@ Name of configuration file is determined in the following order:
    and such file exists.
 3. `/etc/magicchain/payment.conf`
 
-TODO: structure, example
+Here's an example of configuration file:
+
+    {
+        "security":
+        {
+            "hmac-key": "40a60d12ba89bf1943637a0c450b41399c5dc00d9042ad6a1eebcfdb17079f1d",
+            "outgoing-hmac-keyid": "a41391f6",
+            "incoming-nonce-window": 60000,
+            "incoming-nonce-strict-monotone": true
+        },
+        "notify-url": "http://127.0.0.1/cgi-bin/magicchain/notify",
+        "database":
+        {
+            "driver": "mysql",
+            "host": "127.0.0.1",
+            "user": "mcpayment",
+            "password": "mcpayment",
+            "dbname": "mcpayment"
+        },
+        "nodes":
+        [
+            {
+                "chainId": "ETH-mainnet",
+                "address": "127.0.0.1",
+                "port": 8545
+            }
+        ],
+        "Ethereum":
+        [
+            {
+                "chainId": "ETH-mainnet",
+                "symbol": "ETH",
+                "ERC223":
+                [
+                    {
+                        "symbol": "ETH:MAGI",
+                        "contract": "0x1111"
+                    }
+                ],
+                "ERC721":
+                [
+                    {
+                        "symbol": "ETH:MCI",
+                        "contract": "0x2222"
+                    }
+                ]
+            },
+            {
+                "chainId": "ETH-ropsten",
+                "symbol": "ROPSTEN",
+                "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+                "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4"
+            }
+        ]
+    }
+
+ERC-223 and ERC-721 tokens supported by the SERVER are configurable.
 
 # Deposit-related API
 
@@ -86,7 +143,7 @@ Otherwise the address is sent asynchronously within `address` notification.
 ### Parameters
 
 - `userid` - numeric user id;
-- `coin` - name of coin (case insensitive).
+- `coin` - name of coin (case sensitive).
 
 Example:
 
@@ -322,7 +379,7 @@ version" of this notification does exist (`get-tx-status` request).
 
 ## `get-status` method
 
-TODO: balance of deposit master (creator of sub-contracts)
+TODO: balance of deposit controller (creator of sub-contracts)
 
 TODO: balance of the hot wallet
 
