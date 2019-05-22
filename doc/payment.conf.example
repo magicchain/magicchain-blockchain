@@ -1,0 +1,68 @@
+{
+    "security":
+    {
+        "hmac-key": "40a60d12ba89bf1943637a0c450b41399c5dc00d9042ad6a1eebcfdb17079f1d",
+        "outgoing-hmac-keyid": "a41391f6",
+        "incoming-nonce-window": 60000,
+        "incoming-nonce-strict-monotone": true
+    },
+    "notify-url": "http://127.0.0.1/cgi-bin/magicchain/notify",
+    "database":
+    {
+        "driver": "mysql",
+        "host": "127.0.0.1",
+        "user": "mcpayment",
+        "password": "mcpayment",
+        "dbname": "mcpayment"
+    },
+    "nodes":
+    [
+        {
+            "chainId": "ETH-mainnet",
+            "address": "127.0.0.1",
+            "port": 8545
+        }
+    ],
+    "Ethereum":
+    [
+        {
+            "chainId": "ETH-mainnet",
+            "symbol": "ETH",
+            "ERC223":
+            [
+                {
+                    "symbol": "ETH:MAGI",
+                    "contract": "0x1111"
+                }
+            ],
+            "ERC721":
+            [
+                {
+                    "symbol": "ETH:MCI",
+                    "contract": "0x2222",
+                    "extAPI":
+                    [
+                        {
+                            "name": "MCI_setTokenContent",
+                            "sender": "0x3333",
+                            "args": ["uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "2557e758"
+                        },
+                        {
+                            "name": "MCI_mint",
+                            "sender": "0x3333",
+                            "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "string", "uint256"],
+                            "selector": "0b1fd458"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "chainId": "ETH-ropsten",
+            "symbol": "ROPSTEN",
+            "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+            "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4"
+        }
+    ]
+}
