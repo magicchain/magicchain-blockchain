@@ -1,0 +1,21 @@
+#! /usr/bin/env python3
+# Blashyrkh.maniac.coding
+# BTC:1Maniaccv5vSQVuwrmRtfazhf2WsUJ1KyD DOGE:DManiac9Gk31A4vLw9fLN9jVDFAQZc2zPj
+
+import my
+import binascii
+
+config=my.Config()
+db=my.DatabaseConnectionFactory.connect(config["database"])
+#hmac=config["depo"]["hmac"]
+
+h=my.cgijsonrpc.Handler()
+
+h.setOutgoingHMAC(keyid=None, key=None)
+
+#h.addMethod("get-address", my.depo.getAddress)
+#h.addMethod("get-status", my.depo.getStatus)
+
+h.addMethod("get-address", my.rpc.getAddress(db=db, config=config))
+
+h.run()
