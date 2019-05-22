@@ -117,7 +117,22 @@ Here's an example of configuration file:
                 [
                     {
                         "symbol": "ETH:MCI",
-                        "contract": "0x2222"
+                        "contract": "0x2222",
+                        "extAPI":
+                        [
+                            {
+                                "name": "MCI_setTokenContent",
+                                "sender": "0x3333",
+                                "args": ["uint256", "uint256", "uint256", "uint256", "uint256"],
+                                "selector": "2557e758"
+                            },
+                            {
+                                "name": "MCI_mint",
+                                "sender": "0x3333",
+                                "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "string", "uint256"],
+                                "selector": "0b1fd458"
+                            }
+                        ]
                     }
                 ]
             },
@@ -232,11 +247,11 @@ notification is sent to the counterparty with information about transaction
 
 ### Parameters
 
-- `uuid` - UUID of the request, can be used in `get-send-status` request,
+- `uuid` - UUID of the request, can be used in `get-tx-status` request,
   included into `tx-confirmed` notification;
 - `coin` - coin name;
 - `amount` - value of transfer in atomic units, 1 for non-fungible tokens;
-  passed as string in decimal form.
+  passed as string in decimal or hexadecimal (with prefix 0x) form;
 - `tokenId` - id of token, null for fungible tokens;
 - `recipient` - destination address of transfer.
 
@@ -272,7 +287,45 @@ TODO
 
 TODO
 
-## TODO: more specific send-like requests
+## `MCI_setTokenContent` method
+
+This method is Magicchain-specific. It's used to call `setTokenContent` function
+of the MagicChain721 contract instance. In many aspects it resembles `send`
+request:
+
+- it's asynchronous;
+- it has UUID;
+- its status may be polled with `get-tx-status` method;
+- required fee may be estimated with `estimate-fee` method;
+- `tx-confirmed` notification is sent.
+
+### Parameters
+
+- `uuid` - UUID of the request, can be used in `get-tx-status` request,
+  included into `tx-confirmed` notification;
+- `args` - array of arguments of `setTokenContent` function. `uint256` arguments
+  MUST be passed as strings in decimal or hexadecimal (with prefix `0x`) form.
+
+### Response
+
+See `send` method above.
+
+## `MCI_mint` method
+
+This method is Magicchain-specific. It's used to call `mint` function of the
+MagicChain721 contract instance.
+
+### Parameters
+
+- `uuid` - UUID of the request, can be used in `get-tx-status` request,
+  included into `tx-confirmed` notification;
+- `args` - array of arguments of `mint` function. `uint256` arguments MUST be
+  passed as strings in decimal or hexadecimal (with prefix `0x`) form. `string`
+  arguments are passed as is (respecting JSON escaping rules).
+
+### Response
+
+See `send` method above.
 
 ## `get-tx-status` method
 
