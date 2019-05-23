@@ -10,3 +10,6 @@ db=my.DatabaseConnectionFactory.connect(config["database"])
 for r in db.getPendingDepositAddressRequests():
     my.generators.generateAddress(db=db, config=config, userid=r.userid, coin=r.coin)
 
+ethqueue=my.ethqueue.Queue(db=db, config=config)
+for t in db.getPendingTransactions():
+    ethqueue.processTransaction(t.uuid)
