@@ -13,10 +13,11 @@ class getAddress:
         if not isinstance(userid, int):
             raise TypeError("userid argument must be an integer")
 
-        # TODO: "address" may (must?) be an object with additional fields ("message" for NEM)
-
         address=generators.getAddress(db=self.db, config=self.config, userid=userid, coin=coin)
         if address is not None:
-            return {"pending": False, "userid": userid, "coin": coin, "address": address}
+            res=dict(pending=False, userid=userid, coin=coin, address=address.address)
+            res.update(address.extra)
 
-        return {"pending": True}
+            return res
+
+        return dict(pending=True)
