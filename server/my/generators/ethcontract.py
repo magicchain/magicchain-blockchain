@@ -4,6 +4,7 @@
 
 from .. import ethconfig
 from .. import ethqueue
+from ..nodepool import *
 import uuid
 
 class DepositAddressGenerator:
@@ -49,7 +50,7 @@ class DepositAddressGenerator:
 
         # There's txuuid, but there may be not be transaction request
         if status==2:
-            if not queue.getTransaction(uuid=txuuid, chainid=self.coinDescription.chainid):
+            if not queue.getTransaction(txuuid):
                 queue.sendTransaction(
                     uuid=txuuid,
                     chainid=self.coinDescription.chainid,
@@ -63,25 +64,48 @@ class DepositAddressGenerator:
 
         # Transaction was issued, waiting for result
         if status==3:
-            txinfo=queue.getTransaction(uuid=txuuid, chainid=self.coinDescription.chainid)
+            txinfo=queue.getTransaction(txuuid)
             assert txinfo is not None
 
-
             if txinfo.status==0:
-                # TODO: get tx receipt
+                nodepool=NodePool(config=self.config)
+                node=nodepool.connectToAnyNode(self.coinDescription.chainid)
 
-                # TODO: extract address from log
+                receipt=node.eth_getTransactionReceipt(txinfo.txhash)
+                if receipt is not None:
+                    r_userid, r_address=DepositAddressGenerator.__getUseridAndAddressFromReceipt(receipt)
+                    if r_userid is None or r_userid!=userid:
+                        self.db.updateDepositAddress(coin=self.coin, userid=userid, status=-13)
+                    else:
+                        self.db.updateDepositAddress(coin=self.coin, userid=userid, status=0, address=r_address)
 
-                # TODO: alternatively, it's possible to call eth_call to get address from the contract storage
-
-                # TODO: notify
-
-
-
-                pass
+                    # TODO: notify
 
             elif txinfo.status<0:
                 # Transaction execution error, propagate it to 'addresses' table
                 self.db.updateDepositAddress(uuid=info.txuuid, chainid=self.coinDescription.chainid, status=txinfo.status)
 
                 # TODO: notify about error
+
+    @staticmethod
+    def __getUseridAndAddressFromReceipt(receipt):
+        if not isinstance(receipt, dict):
+            return None, None
+
+        if "logs" not in receipt or not isinstance(receipt["logs"], list):
+            return None, None
+
+        for logentry in receipt["logs"]:
+            if not isinstance(logentry, dict):
+                continue
+
+            if "topics" not in logentry or logentry["topics"]!=["0xd3c75d3774b298f1efe8351f0635db8123b649572a5b810e96f5b97e11f43031"]:
+                continue
+
+            if "data" not in logentry or len(logentry["data"])!=130:
+                continue
+
+            data=logentry["data"]
+            return int(data[2:66], 16), "0x"+data[90:130]
+
+        return None, None
