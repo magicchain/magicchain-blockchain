@@ -96,7 +96,7 @@ class Handler:
                 res=self.methods[method](*requestObject["params"])
             else:
                 res=self.methods[method](**requestObject["params"])
-        except TypeError:
+        except (TypeError, ValueError):
             return None if isNotification else Handler.makeErrorReply(-32602, "Invalid params", id)
         # TODO: handle user-defined exception
 
