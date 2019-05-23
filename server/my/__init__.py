@@ -5,4 +5,5 @@
 from .cgijsonrpc import *
 from .database import *
 from .config import Config
+from .ethqueue import *
 from . import rpc
