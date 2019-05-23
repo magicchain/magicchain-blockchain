@@ -6,6 +6,9 @@ import collections
 import time
 
 
+DepositAddress=collections.namedtuple("DepositAddress", ["coin", "userid", "status", "txuuid", "address", "extra"])
+ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "txhash"])
+
 class DatabaseConnectionFactory:
     @staticmethod
     def connect(config):
@@ -16,9 +19,6 @@ class DatabaseConnectionFactory:
             raise ValueError("Unsupported database driver {}".format(driver))
 
 class MysqlDatabaseConnection:
-    DepositAddress=collections.namedtuple("DepositAddress", ["coin", "userid", "status", "txuuid", "address", "extra"])
-    ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "txhash"])
-
     def __init__(self, *, host, user, password, dbname):
         import pymysql
         self.db=pymysql.connect(host=host, user=user, passwd=password, db=dbname)
@@ -49,9 +49,9 @@ class MysqlDatabaseConnection:
                 gasLimit VARCHAR(66) NOT NULL,
                 gasPrice VARCHAR(66) NOT NULL,
                 nonce VARCHAR(66) NOT NULL,
-                data VARCHAR(288) NOT NULL,
+                data BLOB NOT NULL,
                 txhash VARCHAR(66),
-                PRIMARY KEY(uuid, chainid)
+                PRIMARY KEY(uuid)
             );""")
 
 
@@ -71,7 +71,7 @@ class MysqlDatabaseConnection:
         cur.execute("SELECT * FROM depositAddresses WHERE status>0;")
 
         for t in cur.fetchall():
-            yield(MysqlDatabaseConnection.__tupleToDepositAddress(t))
+            yield MysqlDatabaseConnection.__tupleToDepositAddress(t)
 
     def getDepositAddressRequest(self, *, coin, userid):
         cur=self.db.cursor()
@@ -117,16 +117,50 @@ class MysqlDatabaseConnection:
                 sender=sender,
                 receiver=receiver,
                 value="0x{:x}".format(value),
-                data="0x"+data.hex()))
+                data=data))
         self.db.commit()
 
-    def getTransaction(self, *, uuid, chainid):
+    def getTransaction(self, uuid):
         cur=self.db.cursor()
-        if cur.execute("SELECT * FROM ethTransactions WHERE uuid=%(uuid)s AND chainid=%(chainid)s;", dict(uuid=uuid, chainid=chainid))==0:
+        if cur.execute("SELECT * FROM ethTransactions WHERE uuid=%s;", (uuid,))==0:
             return None
 
-        uuid, chainid, creationTime, sendTime, status, sender, receiver, value, gasLimit, gasPrice, nonce, data, txhash=cur.fetchone()
-        return MysqlDatabaseConnection.ETHTransaction(
+        return MysqlDatabaseConnection.__tupleToTransaction(cur.fetchone())
+
+    def getPendingTransactions(self):
+        cur=self.db.cursor()
+        cur.execute("SELECT * FROM ethTransactions WHERE status>0;")
+
+        for t in cur.fetchall():
+            yield MysqlDatabaseConnection.__tupleToTransaction(t)
+
+    def updateTransaction(self, *, uuid, **kwargs):
+        exprs=[]
+        args=dict(uuid=uuid)
+
+        for name in ("sendTime", "status", "txhash", "gasPrice", "gasLimit"):
+            if name in kwargs:
+                exprs.append(name+"=%("+name+")s")
+                args[name]=kwargs[name]
+
+        self.db.cursor().execute("UPDATE ethTransactions SET "+", ".join(exprs)+" WHERE uuid=%(uuid)s;", args)
+        self.db.commit()
+
+    @staticmethod
+    def __tupleToDepositAddress(t):
+        coin, userid, status, txuuid, address, extra1name, extra1value, extra2name, extra2value=t
+        extra={}
+        if extra1name is not None:
+            extra[extra1name]=extra1value
+        if extra2name is not None:
+            extra[extra2name]=extra2value
+
+        return DepositAddress(coin, userid, status, txuuid, address, extra)
+
+    @staticmethod
+    def __tupleToTransaction(t):
+        uuid, chainid, creationTime, sendTime, status, sender, receiver, value, gasLimit, gasPrice, nonce, data, txhash=t
+        return ETHTransaction(
             uuid,
             chainid,
             creationTime,
@@ -138,16 +172,5 @@ class MysqlDatabaseConnection:
             int(gasLimit, 16),
             int(gasPrice, 16),
             int(nonce, 16),
-            bytes.fromhex(data[2:]),
+            data,
             txhash)
-
-    @staticmethod
-    def __tupleToDepositAddress(t):
-        coin, userid, status, txuuid, address, extra1name, extra1value, extra2name, extra2value=t
-        extra={}
-        if extra1name is not None:
-            extra[extra1name]=extra1value
-        if extra2name is not None:
-            extra[extra2name]=extra2value
-
-        return MysqlDatabaseConnection.DepositAddress(coin, userid, status, txuuid, address, extra)
