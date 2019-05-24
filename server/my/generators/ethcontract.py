@@ -5,6 +5,7 @@
 from .. import ethconfig
 from .. import ethqueue
 from ..nodepool import *
+from ..notify import *
 import uuid
 
 class DepositAddressGenerator:
@@ -67,6 +68,8 @@ class DepositAddressGenerator:
             txinfo=queue.getTransaction(txuuid)
             assert txinfo is not None
 
+            notifier=Notifier(config=self.config)
+
             if txinfo.status==0:
                 nodepool=NodePool(config=self.config)
                 node=nodepool.connectToAnyNode(self.coinDescription.chainid)
@@ -76,16 +79,15 @@ class DepositAddressGenerator:
                     r_userid, r_address=DepositAddressGenerator.__getUseridAndAddressFromReceipt(receipt)
                     if r_userid is None or r_userid!=userid:
                         self.db.updateDepositAddress(coin=self.coin, userid=userid, status=-13)
+                        notifier.sendNotification("address", userid=userid, coin=self.coin, address=None, error=-13)
                     else:
                         self.db.updateDepositAddress(coin=self.coin, userid=userid, status=0, address=r_address)
-
-                    # TODO: notify
+                        notifier.sendNotification("address", userid=userid, coin=self.coin, address=r_address, error=None)
 
             elif txinfo.status<0:
                 # Transaction execution error, propagate it to 'addresses' table
                 self.db.updateDepositAddress(uuid=info.txuuid, chainid=self.coinDescription.chainid, status=txinfo.status)
-
-                # TODO: notify about error
+                notifier.sendNotification("address", userid=userid, coin=self.coin, address=None, error=txinfo.status)
 
     @staticmethod
     def __getUseridAndAddressFromReceipt(receipt):
