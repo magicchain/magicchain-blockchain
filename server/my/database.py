@@ -8,6 +8,7 @@ import time
 
 DepositAddress=collections.namedtuple("DepositAddress", ["coin", "userid", "status", "txuuid", "address", "extra"])
 ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "txhash"])
+Deposit=collections.namedtuple("Deposit", ["coin", "txid", "vout", "notified", "blockNumber", "userid", "amount", "tokenId"])
 
 class DatabaseConnectionFactory:
     @staticmethod
@@ -54,6 +55,25 @@ class MysqlDatabaseConnection:
                 PRIMARY KEY(uuid)
             );""")
 
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositTransactions
+            (
+                coin VARCHAR(30) NOT NULL,
+                txid VARCHAR(80) NOT NULL,
+                vout BIGINT UNSIGNED NOT NULL,
+                notified TINYINT NOT NULL,
+                blockNumber BIGINT UNSIGNED NOT NULL,
+                userid BIGINT UNSIGNED,
+                amount VARCHAR(66) NOT NULL,
+                tokenId VARCHAR(66),
+                PRIMARY KEY(coin, txid, vout)
+            );""")
+
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS lastScannedBlock
+            (
+                coin VARCHAR(30) NOT NULL,
+                blockNumber BIGINT UNSIGNED NOT NULL,
+                PRIMARY KEY(coin)
+            );""")
 
     def getExistingDepositAddress(self, *, coin, userid):
         cur=self.db.cursor()
@@ -146,6 +166,51 @@ class MysqlDatabaseConnection:
         self.db.cursor().execute("UPDATE ethTransactions SET "+", ".join(exprs)+" WHERE uuid=%(uuid)s;", args)
         self.db.commit()
 
+    def addNewDeposit(self, *, coin, txid, vout, blockNumber, userid, amount, tokenId):
+        self.db.cursor().execute(
+            "INSERT IGNORE INTO depositTransactions SET coin=%(coin)s, txid=%(txid)s, vout=%(vout)s, notified=0, blockNumber=%(blockNumber)s, userid=%(userid)s, amount=%(amount)s, tokenId=%(tokenId)s;",
+            dict(
+                coin=coin,
+                txid=txid,
+                vout=vout,
+                blockNumber=blockNumber,
+                userid=userid,
+                amount=amount,
+                tokenId=tokenId))
+        self.db.commit()
+
+    def updateDeposit(self, *, coin, txid, vout, notified):
+        self.db.cursor().execute(
+            "UPDATE depositTransactions SET notified=%(notified)s WHERE coin=%(coin)s AND txid=%(txid)s AND vout=%(vout)s;",
+            dict(
+                coin=coin,
+                txid=txid,
+                vout=vout,
+                notified=int(notified)))
+        self.db.commit()
+
+    def getLastScannedBlock(self, *, coin):
+        cur=self.db.cursor()
+        if cur.execute("SELECT blockNumber FROM lastScannedBlock WHERE coin=%s;", (coin,))==0:
+            return None
+
+        return cur.fetchone()[0]
+
+    def setLastScannedBlock(self, *, coin, blockNumber):
+        self.db.cursor().execute(
+            "INSERT INTO lastScannedBlock SET coin=%(coin)s, blockNumber=%(blockNumber)s ON DUPLICATE KEY UPDATE blockNumber=%(blockNumber)s;",
+            dict(
+                coin=coin,
+                blockNumber=blockNumber))
+        self.db.commit()
+
+    def getPendingDeposits(self):
+        cur=self.db.cursor()
+        cur.execute("SELECT * FROM depositTransactions WHERE notified=0;")
+
+        for t in cur.fetchall():
+            yield MysqlDatabaseConnection.__tupleToDeposit(t)
+
     @staticmethod
     def __tupleToDepositAddress(t):
         coin, userid, status, txuuid, address, extra1name, extra1value, extra2name, extra2value=t
@@ -174,3 +239,16 @@ class MysqlDatabaseConnection:
             int(nonce, 16),
             data,
             txhash)
+
+    @staticmethod
+    def __tupleToDeposit(t):
+        coin, txid, vout, notified, blockNumber, userid, amount, tokenId=t
+        return Deposit(
+            coin,
+            txid,
+            vout,
+            notified,
+            blockNumber,
+            userid,
+            int(amount, 0),
+            tokenId)

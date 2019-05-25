@@ -28,3 +28,21 @@ def findCoinDescription(*, config, coin):
                     return CoinDescription(coin, chainId, depositContract, depositController, "ERC721", erc721["contract"], chainConfig["symbol"])
 
     return None
+
+def listCoinDescriptions(config):
+    for chainConfig in config["Ethereum"]:
+        chainId=chainConfig["chainId"]
+        depositContract=chainConfig.get("depositContract", None)
+        depositController=chainConfig.get("depositController", None)
+
+        yield CoinDescription(chainConfig["symbol"], chainId, depositContract, depositController, "", None, chainConfig["symbol"])
+
+        erc223_list=chainConfig.get("ERC223", None)
+        if erc223_list is not None:
+            for erc223 in erc223_list:
+                yield CoinDescription(erc223["symbol"], chainId, depositContract, depositController, "ERC223", erc223["contract"], chainConfig["symbol"])
+
+        erc721_list=chainConfig.get("ERC721", None)
+        if erc721_list is not None:
+            for erc721 in erc721_list:
+                yield CoinDescription(erc721["symbol"], chainId, depositContract, depositController, "ERC721", erc721["contract"], chainConfig["symbol"])

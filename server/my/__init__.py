@@ -7,3 +7,5 @@ from .database import *
 from .config import Config
 from .ethqueue import *
 from . import rpc
+from . import generators
+from . import scanners

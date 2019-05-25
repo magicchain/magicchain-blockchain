@@ -13,3 +13,5 @@ for r in db.getPendingDepositAddressRequests():
 ethqueue=my.ethqueue.Queue(db=db, config=config)
 for t in db.getPendingTransactions():
     ethqueue.processTransaction(t.uuid)
+
+my.scanners.scanDeposits(db=db, config=config)
