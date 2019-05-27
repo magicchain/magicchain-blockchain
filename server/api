@@ -13,9 +13,8 @@ h=my.cgijsonrpc.Handler()
 
 h.setOutgoingHMAC(keyid=None, key=None)
 
-h.addMethod("get-address", my.rpc.getAddress(db=db, config=config))
-h.addMethod("get-tx-status", my.rpc.getTxStatus(db=db))
-#h.addMethod("send", my.rpc.send(db=db, config=config))
+h.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
+h.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
 
 # TODO: send
 # TODO: estimate-fee

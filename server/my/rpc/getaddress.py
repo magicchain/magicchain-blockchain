@@ -4,7 +4,7 @@
 
 from .. import generators
 
-class getAddress:
+class GetAddress:
     def __init__(self, *, db, config):
         self.db=db
         self.config=config

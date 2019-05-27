@@ -4,6 +4,11 @@
 
 import os, sys, json, time, hashlib, hmac
 
+class JsonRPCException(Exception):
+    def __init__(self, code, message):
+        self.code=code
+        self.message=message
+
 class Handler:
     def __init__(self):
         self.methods={}
@@ -98,7 +103,8 @@ class Handler:
                 res=self.methods[method](**requestObject["params"])
         except (TypeError, ValueError):
             return None if isNotification else Handler.makeErrorReply(-32602, "Invalid params", id)
-        # TODO: handle user-defined exception
+        except JsonRPCException as e:
+            return Handler.makeErrorReply(e.code, e.message, id)
 
         return None if isNotification else Handler.makeResultReply(res, id)
 
