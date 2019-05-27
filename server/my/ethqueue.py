@@ -37,6 +37,7 @@ class Queue:
             txobject={}
             txobject["from"]=info.sender
             txobject["to"]=info.receiver
+            txobject["value"]="0x{:x}".format(info.value)
 
             #txobject["gasPrice"]=
             txobject["gas"]="0x{:x}".format(1000000)
