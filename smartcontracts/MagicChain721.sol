@@ -574,6 +574,18 @@ contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
         _sealed = true;
     }
 
+    /// @notice A descriptive name for a collection of NFTs in this contract
+    function name() external view returns (string memory)
+    {
+        return _name;
+    }
+
+    /// @notice An abbreviated name for NFTs in this contract
+    function symbol() external view returns (string memory)
+    {
+        return _symbol;
+    }
+
     /**
      * @dev Returns an URI for a given token ID.
      * Throws if the token ID does not exist. May return an empty string.
