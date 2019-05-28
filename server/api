@@ -15,8 +15,8 @@ h.setOutgoingHMAC(keyid=None, key=None)
 
 h.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
 h.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
+h.addMethod("send", my.rpc.Send(db=db, config=config))
 
-# TODO: send
 # TODO: estimate-fee
 # TODO: ext
 

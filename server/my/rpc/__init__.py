@@ -4,3 +4,4 @@
 
 from .getaddress import *
 from .gettxstatus import *
+from .send import *
