@@ -4,45 +4,95 @@
 
 import collections
 
-CoinDescription=collections.namedtuple("CoinDescription", ["symbol", "chainid", "depositContract", "depositController", "type", "contract", "parentCoinSymbol"])
+CoinDescription=collections.namedtuple("CoinDescription", ["symbol", "chainid", "depositContract", "depositController", "hotWallet", "type", "contract", "parentCoinSymbol"])
 
 def findCoinDescription(*, config, coin):
     for chainConfig in config["Ethereum"]:
-        chainId=chainConfig["chainId"]
+        chainid=chainConfig["chainId"]
         depositContract=chainConfig.get("depositContract", None)
         depositController=chainConfig.get("depositController", None)
+        hotWallet=chainConfig.get("hotWallet", None)
 
         if chainConfig["symbol"]==coin:
-            return CoinDescription(coin, chainId, depositContract, depositController, "", None, coin)
+            return CoinDescription(
+                symbol=coin,
+                chainid=chainid,
+                depositContract=depositContract,
+                depositController=depositController,
+                hotWallet=hotWallet,
+                type="",
+                contract=None,
+                parentCoinSymbol=coin)
 
         erc223_list=chainConfig.get("ERC223", None)
         if erc223_list is not None:
             for erc223 in erc223_list:
                 if erc223["symbol"]==coin:
-                    return CoinDescription(coin, chainId, depositContract, depositController, "ERC223", erc223["contract"], chainConfig["symbol"])
+                    return CoinDescription(
+                        symbol=coin,
+                        chainid=chainid,
+                        depositContract=depositContract,
+                        depositController=depositController,
+                        hotWallet=erc223.get("hotWallet", hotWallet),
+                        type="ERC223",
+                        contract=erc223["contract"],
+                        parentCoinSymbol=chainConfig["symbol"])
 
         erc721_list=chainConfig.get("ERC721", None)
         if erc721_list is not None:
             for erc721 in erc721_list:
                 if erc721["symbol"]==coin:
-                    return CoinDescription(coin, chainId, depositContract, depositController, "ERC721", erc721["contract"], chainConfig["symbol"])
+                    return CoinDescription(
+                        symbol=coin,
+                        chainid=chainid,
+                        depositContract=depositContract,
+                        depositController=depositController,
+                        hotWallet=erc721.get("hotWallet", hotWallet),
+                        type="ERC721",
+                        contract=erc721["contract"],
+                        parentCoinSymbol=chainConfig["symbol"])
 
     return None
 
 def listCoinDescriptions(config):
     for chainConfig in config["Ethereum"]:
-        chainId=chainConfig["chainId"]
+        chainid=chainConfig["chainId"]
         depositContract=chainConfig.get("depositContract", None)
         depositController=chainConfig.get("depositController", None)
+        hotWallet=chainConfig.get("hotWallet", None)
 
-        yield CoinDescription(chainConfig["symbol"], chainId, depositContract, depositController, "", None, chainConfig["symbol"])
+        yield CoinDescription(
+            symbol=chainConfig["symbol"],
+            chainid=chainid,
+            depositContract=depositContract,
+            depositController=depositController,
+            hotWallet=hotWallet,
+            type="",
+            contract=None,
+            parentCoinSymbol=chainConfig["symbol"])
 
         erc223_list=chainConfig.get("ERC223", None)
         if erc223_list is not None:
             for erc223 in erc223_list:
-                yield CoinDescription(erc223["symbol"], chainId, depositContract, depositController, "ERC223", erc223["contract"], chainConfig["symbol"])
+                yield CoinDescription(
+                    symbol=erc223["symbol"],
+                    chainid=chainid,
+                    depositContract=depositContract,
+                    depositController=depositController,
+                    hotWallet=erc223.get("hotWallet", hotWallet),
+                    type="ERC223",
+                    contract=erc223["contract"],
+                    parentCoinSymbol=chainConfig["symbol"])
 
         erc721_list=chainConfig.get("ERC721", None)
         if erc721_list is not None:
             for erc721 in erc721_list:
-                yield CoinDescription(erc721["symbol"], chainId, depositContract, depositController, "ERC721", erc721["contract"], chainConfig["symbol"])
+                yield CoinDescription(
+                    symbol=erc721["symbol"],
+                    chainid=chainid,
+                    depositContract=depositContract,
+                    depositController=depositController,
+                    hotWallet=erc721.get("hotWallet", hotWallet),
+                    type="ERC721",
+                    contract=erc721["contract"],
+                    parentCoinSymbol=chainConfig["symbol"])

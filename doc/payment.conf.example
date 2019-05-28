@@ -6,7 +6,7 @@
         "incoming-nonce-window": 60000,
         "incoming-nonce-strict-monotone": true
     },
-    "notify-url": "http://127.0.0.1/cgi-bin/magicchain/notify",
+    "notify-url": "http://localhost/cgi-bin/magicchain/notify",
     "database":
     {
         "driver": "mysql",
@@ -18,7 +18,7 @@
     "nodes":
     [
         {
-            "chainId": "ETH-mainnet",
+            "chainId": "ETH-ropsten",
             "address": "127.0.0.1",
             "port": 8545
         }
@@ -62,7 +62,8 @@
             "chainId": "ETH-ropsten",
             "symbol": "ROPSTEN",
             "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
-            "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4"
+            "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
+            "hotWallet": "0x864faf6156947c730a49c11abf5843c5d304c257"
         }
     ]
 }
