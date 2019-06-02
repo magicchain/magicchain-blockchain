@@ -4,7 +4,7 @@
 
 import collections
 
-CoinDescription=collections.namedtuple("CoinDescription", ["symbol", "chainid", "depositContract", "depositController", "hotWallet", "type", "contract", "parentCoinSymbol"])
+CoinDescription=collections.namedtuple("CoinDescription", ["symbol", "chainid", "depositContract", "depositController", "hotWallet", "type", "contract", "parentCoinSymbol", "extAPI"])
 
 def findCoinDescription(*, config, coin):
     for chainConfig in config["Ethereum"]:
@@ -22,7 +22,8 @@ def findCoinDescription(*, config, coin):
                 hotWallet=hotWallet,
                 type="",
                 contract=None,
-                parentCoinSymbol=coin)
+                parentCoinSymbol=coin,
+                extAPI=[])
 
         erc223_list=chainConfig.get("ERC223", None)
         if erc223_list is not None:
@@ -36,7 +37,8 @@ def findCoinDescription(*, config, coin):
                         hotWallet=erc223.get("hotWallet", hotWallet),
                         type="ERC223",
                         contract=erc223["contract"],
-                        parentCoinSymbol=chainConfig["symbol"])
+                        parentCoinSymbol=chainConfig["symbol"],
+                        extAPI=erc223.get("extAPI", []))
 
         erc721_list=chainConfig.get("ERC721", None)
         if erc721_list is not None:
@@ -50,7 +52,8 @@ def findCoinDescription(*, config, coin):
                         hotWallet=erc721.get("hotWallet", hotWallet),
                         type="ERC721",
                         contract=erc721["contract"],
-                        parentCoinSymbol=chainConfig["symbol"])
+                        parentCoinSymbol=chainConfig["symbol"],
+                        extAPI=erc721.get("extAPI", []))
 
     return None
 
@@ -69,7 +72,8 @@ def listCoinDescriptions(config):
             hotWallet=hotWallet,
             type="",
             contract=None,
-            parentCoinSymbol=chainConfig["symbol"])
+            parentCoinSymbol=chainConfig["symbol"],
+            extAPI=[])
 
         erc223_list=chainConfig.get("ERC223", None)
         if erc223_list is not None:
@@ -82,7 +86,8 @@ def listCoinDescriptions(config):
                     hotWallet=erc223.get("hotWallet", hotWallet),
                     type="ERC223",
                     contract=erc223["contract"],
-                    parentCoinSymbol=chainConfig["symbol"])
+                    parentCoinSymbol=chainConfig["symbol"],
+                    extAPI=erc223.get("extAPI", []))
 
         erc721_list=chainConfig.get("ERC721", None)
         if erc721_list is not None:
@@ -95,4 +100,5 @@ def listCoinDescriptions(config):
                     hotWallet=erc721.get("hotWallet", hotWallet),
                     type="ERC721",
                     contract=erc721["contract"],
-                    parentCoinSymbol=chainConfig["symbol"])
+                    parentCoinSymbol=chainConfig["symbol"],
+                    extAPI=erc721.get("extAPI", []))
