@@ -31,10 +31,13 @@ def scanDeposits(*, db, config):
                 depositContract=coinDescription.depositContract,
                 db=db)
 
-        # TODO: erc-223
-        
-        # TODO: erc-721
-
+        elif coinDescription.type=="ERC721":
+            scanERC721Deposits(
+                coin=coinDescription.symbol,
+                node=node,
+                tokenContract=coinDescription.contract,
+                depositContract=coinDescription.depositContract,
+                db=db)
 
 def scanEthereumDeposits(*, coin, node, depositContract, db):
     fromBlock=(db.getLastScannedBlock(coin=coin) or 0)+1
@@ -91,5 +94,34 @@ def scanERC223Deposits(*, coin, node, tokenContract, depositContract, db):
             userid=userid,
             amount="0x{:x}".format(amount),
             tokenId=None)
+
+    db.setLastScannedBlock(coin=coin, blockNumber=toBlock)
+
+def scanERC721Deposits(*, coin, node, tokenContract, depositContract, db):
+    fromBlock=(db.getLastScannedBlock(coin=coin) or 0)+1
+    toBlock=int(node.eth_blockNumber(), 16)-4
+
+    filter={}
+    filter["fromBlock"]="0x{:x}".format(fromBlock)
+    filter["toBlock"]="0x{:x}".format(toBlock)
+    filter["address"]=depositContract
+    filter["topics"]=["0x331f29737013eaa09945e5a312c0ae07eca0ef4b486254221f441809d78c2a0e", "0x"+12*"00"+tokenContract[2:]]
+
+    logs=node.eth_getLogs(filter)
+    for logEntry in logs:
+        if "data" not in logEntry or len(logEntry["data"])!=130:
+            continue
+
+        userid=int(logEntry["data"][2:66], 16)
+        tokenid="0x"+logEntry["data"][66:130]
+
+        db.addNewDeposit(
+            coin=coin,
+            txid=logEntry["transactionHash"],
+            vout=int(logEntry["logIndex"], 16),
+            blockNumber=int(logEntry["blockNumber"], 16),
+            userid=userid,
+            amount="1",
+            tokenId=tokenid)
 
     db.setLastScannedBlock(coin=coin, blockNumber=toBlock)
