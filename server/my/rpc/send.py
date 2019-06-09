@@ -17,12 +17,10 @@ class Send:
                 config=self.config,
                 uuid=uuid,
                 coin=coin,
-                amount=int(amount, 0),
+                amount=amount,
                 tokenId=tokenId,
                 recipient=recipient,
                 **kwargs)
             return None
         except:
             raise cgijsonrpc.JsonRPCException(-1001, "Duplicate UUID")
-
-        # TODO: raise "invalid coin" error

@@ -8,4 +8,9 @@ def send(*, db, config, uuid, coin, amount, tokenId, recipient, **kwargs):
     if ethwallet.isCoinNameAccepted(config=config, coin=coin):
         return ethwallet.send(db=db, config=config, uuid=uuid, coin=coin, amount=amount, tokenId=tokenId, recipient=recipient)
 
-    # TODO: raise "unsupported coin" exception
+    # Add more coins here
+    # {
+
+    # }
+
+    raise ValueError("Unsupported coin name {0}".format(coin))
