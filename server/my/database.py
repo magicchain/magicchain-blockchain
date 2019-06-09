@@ -23,6 +23,7 @@ class MysqlDatabaseConnection:
     def __init__(self, *, host, user, password, dbname):
         import pymysql
         self.db=pymysql.connect(host=host, user=user, passwd=password, db=dbname)
+        self.db.cursor().execute("SET sql_notes = 0;")
         self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositAddresses
             (
                 coin VARCHAR(30) NOT NULL,
@@ -74,6 +75,8 @@ class MysqlDatabaseConnection:
                 blockNumber BIGINT UNSIGNED NOT NULL,
                 PRIMARY KEY(coin)
             );""")
+        self.db.cursor().execute("SET sql_notes = 1;")
+        self.db.commit()
 
     def getExistingDepositAddress(self, *, coin, userid):
         cur=self.db.cursor()
