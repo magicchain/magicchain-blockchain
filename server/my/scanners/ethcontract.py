@@ -121,7 +121,7 @@ def scanERC721Deposits(*, coin, node, tokenContract, depositContract, db):
             vout=int(logEntry["logIndex"], 16),
             blockNumber=int(logEntry["blockNumber"], 16),
             userid=userid,
-            amount="1",
+            amount=None,
             tokenId=tokenid)
 
     db.setLastScannedBlock(coin=coin, blockNumber=toBlock)

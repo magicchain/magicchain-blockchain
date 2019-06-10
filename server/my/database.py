@@ -64,7 +64,7 @@ class MysqlDatabaseConnection:
                 notified TINYINT NOT NULL,
                 blockNumber BIGINT UNSIGNED NOT NULL,
                 userid BIGINT UNSIGNED,
-                amount VARCHAR(66) NOT NULL,
+                amount VARCHAR(66),
                 tokenId VARCHAR(66),
                 PRIMARY KEY(coin, txid, vout)
             );""")

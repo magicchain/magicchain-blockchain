@@ -21,7 +21,7 @@ method. Content-Type header field MUST be set to `application/json`.
 
 Both positional and named parameters of JSON-RPC requests are supported by
 SERVER. Notification parameters (sent from the SERVER to its counterpart) are
-positional.
+named.
 
 # Security
 
@@ -227,7 +227,7 @@ a deposit is detected.
 
 - `userid` - numeric user id;
 - `coin` - name of coin;
-- `amount` - value of deposit in atomic units, 1 for non-fungible tokens;
+- `amount` - value of deposit in atomic units, null for non-fungible tokens;
 - `tokenId` - id of token, null for fungible tokens.
 
 ### Expected result
@@ -250,8 +250,9 @@ notification is sent to the counterparty with information about transaction
 - `uuid` - UUID of the request, can be used in `get-tx-status` request,
   included into `tx-confirmed` notification;
 - `coin` - coin name;
-- `amount` - value of transfer in atomic units, 1 for non-fungible tokens;
-  passed as string in decimal or hexadecimal (with prefix 0x) form;
+- `amount` - value of transfer in atomic units, null for non-fungible tokens;
+  if not null, MUST be passed as string in decimal or hexadecimal (with prefix
+  0x) form;
 - `tokenId` - id of token, null for fungible tokens;
 - `recipient` - destination address of transfer.
 
