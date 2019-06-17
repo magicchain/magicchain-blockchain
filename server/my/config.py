@@ -15,6 +15,9 @@ class Config:
     def __getitem__(self, key):
         return self.data[key]
 
+    def get(self, key, default=None):
+        return self.data.get(key, default)
+
     @staticmethod
     def getDefaultFileName():
         try:

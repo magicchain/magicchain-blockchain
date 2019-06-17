@@ -2,7 +2,7 @@
 # Blashyrkh.maniac.coding
 # BTC:1Maniaccv5vSQVuwrmRtfazhf2WsUJ1KyD DOGE:DManiac9Gk31A4vLw9fLN9jVDFAQZc2zPj
 
-import os, sys, json, time, hashlib, hmac
+import os, sys, json, time, hashlib, hmac, binascii
 
 class JsonRPCException(Exception):
     def __init__(self, code, message):
@@ -10,19 +10,13 @@ class JsonRPCException(Exception):
         self.message=message
 
 class Handler:
-    def __init__(self):
+    def __init__(self, *, keyid=None, key=None):
         self.methods={}
-        self.outgoingHMACKeyId=None
-        self.outgoingHMACKey=None
+        self.hmacKeyId=keyid
+        self.hmacKey=key and binascii.a2b_hex(key)
 
     def addMethod(self, name, function):
         self.methods[name]=function
-
-    # TODO: setIncomingHMAC, allow multiple key ids with distinct hmac keys
-
-    def setOutgoingHMAC(self, keyid, key):
-        self.outgoingHMACKeyId=keyid
-        self.outgoingHMACKey=key
 
     def run(self):
         if os.environ.get("REQUEST_METHOD")!="POST":
@@ -33,13 +27,21 @@ class Handler:
             sys.stdout.write("Status: 415 Unsupported Media Type\n\nOnly application/json content type is supported\n")
             return
 
-        data=sys.stdin.read()
+        data=sys.stdin.buffer.read()
 
-        # TODO: check request HMAC if needed
+        if self.hmacKey is not None:
+            digest=hmac.new(self.hmacKey, data, hashlib.sha256).digest()
+            try:
+                sig=binascii.a2b_hex(os.environ.get("HTTP_HMAC_SIGNATURE"))
+            except:
+                sig=None
 
+            if digest!=sig:
+                sys.stdout.write("Status: 403 Forbidden\n\n")
+                return
 
         try:
-            j=json.loads(data)
+            j=json.loads(data.decode("utf8"))
         except json.decoder.JSONDecodeError:
             self.printReply(Handler.makeErrorReply(-32700, "Parse error", None))
             return
@@ -126,13 +128,11 @@ class Handler:
         buf.write(b"Status: 200 OK\n")
         buf.write(b"Content-Type: application/json\n")
 
-        if self.outgoingHMACKeyId is not None:
-            buf.write(b"HMAC-KeyId: "+self.outgoingHMACKeyId.encode("utf8")+b"\n")
-        if self.outgoingHMACKey is not None:
-            nonce="{0}".format(int(time.time()*1000)).encode("latin1")
-            digest=hmac.new(self.outgoingHMACKey, s+nonce, hashlib.sha256).hexdigest().encode("latin1")
+        if self.hmacKeyId is not None:
+            buf.write(b"HMAC-KeyId: "+self.hmacKeyId.encode("utf8")+b"\n")
+        if self.hmacKey is not None:
+            digest=hmac.new(self.hmacKey, s, hashlib.sha256).hexdigest().encode("latin1")
 
-            buf.write(b"HMAC-Nonce: "+nonce+b"\n")
             buf.write(b"HMAC-Signature: "+digest+b"\n")
 
         buf.write(b"\n"+s)

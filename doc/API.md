@@ -13,20 +13,26 @@ interpreted as described in RFC 2119.
 The protocol is based on JSON-RPC 2.0 with HTTP/1.x used as a transport. Both
 ends of communication MUST implement JSON-RPC 2.0 server since SERVER sends
 notifications to its counterparty. There MUST be exactly one counterparty with
-static IP-address which is stored in the SERVER's configuration file. In
-contrast, single counterparty MAY communicate with multiple SERVERs.
+static IP-address specified in the SERVER's configuration file. In contrast,
+single counterparty MAY communicate with multiple SERVERs.
 
 All RPC requests MUST be sent to HTTP URL: `http://.../mc/v1/api` using POST
 method. Content-Type header field MUST be set to `application/json`.
 
-Both positional and named parameters of JSON-RPC requests are supported by
-SERVER. Notification parameters (sent from the SERVER to its counterpart) are
+Both positional and named parameters of JSON-RPC requests are supported by the
+SERVER. Notification parameters (sent from the SERVER to its counterparty) are
 named.
 
 # Security
 
 Both directions of communication between SERVER and its counterparty are
-protected from malicious modifications and duplications with HMAC signatures.
+protected from malicious modification by HMAC signatures.
+
+Protection from malicious request duplication is either unnecessary or ensured
+by the nature of data passed.
+
+Protection from malicious response duplication MAY be ensured by using unique
+JSON RPC request id for each request (e.g. UUID).
 
 The same HMAC key is used for both directions of communication. There's no
 need to use separate keys since compromising of any end of communication
@@ -37,30 +43,23 @@ would leak both keys anyway.
 All HTTP responses and HTTP requests with non-empty body sent from SERVER
 to its counterparty are signed with HMAC-SHA256 algorithm:
 
-1. NONCE value is generated as a number of milliseconds passed since Unix Epoch.
-2. The key for HMAC-SHA256 algorithm is taken from the configuration file.
-3. NONCE value in decimal form is appended to the request/response body without
-   a delimiter, HMAC-SHA256 signature of the resulting string is calculated.
-4. The following three fields are added to the HTTP request/response header:
+1. The key for HMAC-SHA256 algorithm is taken from the configuration file.
+2. HMAC-SHA256 signature of the body is calculated.
+3. The following two fields are added to the HTTP request/response header:
     - HMAC-Signature: the result of HMAC-SHA256 algorithm in hex form;
-    - HMAC-Nonce: the NONCE value;
     - HMAC-KeyId: an arbitrary string identifier stored in the configuration
-      file. It may be used by the counterpart to choose an appropriate HMAC key
-      if the counterpart works with several instances of SERVER.
+      file. It may be used by the counterparty to choose an appropriate HMAC
+      key if the counterparty works with several instances of SERVER.
 
 ## From counterparty to SERVER
 
 All HTTP responses and HTTP requests with non-empty body sent to SERVER from
-its counterparty MUST be signed with HMAC-SHA256 algorithm. The following
-checks are made:
+its counterparty MUST be signed with HMAC-SHA256 algorithm.
 
-1. NONCE value is extracted from `HMAC-Nonce` HTTP header field. The value MUST
-   belong to the range `[SERVER TIME - 60000ms; SERVER TIME + 60000ms]`. If the
-   NONCE value is out of the range, `403 Forbidden` HTTP error is returned.
-2. NONCE value in decimal form is appended to the request/response body without
-   a delimiter, HMAC-SHA256 signature of the resulting string is calculated.
-   The result is compared with the value of the `HMAC-Signature` header field 
-   If it doesn't match, `403 Forbidden` HTTP error is returned.
+HMAC-SHA256 signature of request/response body is calculated. The result is
+compared with the value of the `HMAC-Signature` header field. If request
+signature doesn't match, `403 Forbidden` HTTP error is returned. If response
+signature doesn't match, the response is just ignored.
 
 HTTP responses and HTTP requests with empty body (only responses to JSON-RPC
 notifications match this condition) MAY be sent without a signature.
@@ -210,9 +209,9 @@ contract is deployed (which can take some amount of time).
 - `coin` - coin name;
 - `address` - the address.
 
-### Expected result
+### Expected response
 
-No result is expected since it's a notification in terms of JSON RPC 2.0. This
+No response is expected since it's a notification in terms of JSON RPC 2.0. This
 notification MAY be lost for some reason, so the counterparty SHOULD repeat the
 `get-address` request until the address is returned (probably, synchronously,
 if notification was sent but not delivered properly).
@@ -230,11 +229,18 @@ a deposit is detected.
 - `amount` - value of deposit in atomic units, null for non-fungible tokens;
 - `tokenId` - id of token, null for fungible tokens.
 
-### Expected result
+### Expected response
 
 Boolean value `true` signifies that the deposit was accepted by the counterparty.
-In any other case (including an absence of any reply) the counterparty would be
-notified again later.
+In any other case (including an absence of any response) the counterparty would
+be notified again later.
+
+### Security considerations
+
+Counterparty MUST take measures against multiple crediting of the same deposit.
+It MAY happen due to natural causes (loss of a response) or replay attack
+performed by a malefactor.
+
 
 # Hot wallet related API
 
@@ -287,6 +293,11 @@ TODO
 ### Response (duplicate uuid)
 
 TODO
+
+### Security considerations
+
+Replay attack is not efficient since sending the same request will end up with
+"duplicate uuid" error.
 
 ## `MCI_setTokenContent` method
 
