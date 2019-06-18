@@ -32,12 +32,13 @@ class Handler:
         if self.hmacKey is not None:
             digest=hmac.new(self.hmacKey, data, hashlib.sha256).digest()
             try:
-                sig=binascii.a2b_hex(os.environ.get("HTTP_HMAC_SIGNATURE"))
+                sig=os.environ.get("HTTP_HMAC_SIGNATURE")
+                sig=sig and binascii.a2b_hex(sig)
             except:
                 sig=None
 
             if digest!=sig:
-                sys.stdout.write("Status: 403 Forbidden\n\n")
+                sys.stdout.write("Status: 403 Forbidden\n\nForbidden\n")
                 return
 
         try:
