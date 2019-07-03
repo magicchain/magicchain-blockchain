@@ -505,11 +505,15 @@ library MagicItemOps {
     }
 
     function itemLevel(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & (uint256(0x3f) << 75)) >> 75);
+        return uint8((item.b0 & (uint256(0x7f) << 69)) >> 69);
+    }
+
+    function itemModifiers(MagicItem memory item) internal pure returns (uint8) {
+        return uint8((item.b0 & (uint256(0xff) << 76)) >> 76);
     }
 
     function itemExtensions(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & (uint256(0xf) << 81)) >> 81);
+        return uint8((item.b0 & (uint256(0xf) << 84)) >> 84);
     }
     
     function canBeChanged(MagicItem memory itemFrom, MagicItem memory itemTo) internal pure returns (bool) {
@@ -525,6 +529,11 @@ library MagicItemOps {
 
         // Amount of extensions of MagicItem can increase only
         if (itemExtensions(itemFrom) > itemExtensions(itemTo)) {
+            return false;
+        }
+
+        // Amount of modifiers of MagicItem can increase only
+        if (itemModifiers(itemFrom) > itemModifiers(itemTo)) {
             return false;
         }
 
