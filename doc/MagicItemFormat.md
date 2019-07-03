@@ -18,12 +18,13 @@ No|Offset (bits)|Size (bits)|Description|Smartcontract restrictions
 2|5|3|Type of magic item (0 - general, 1 - epiq, 2 - rare, 3 - season)|MUST be constant
 3|8|14|Kind of magic item of specified class and type|MUST be constant
 4|22|13|Base power of magic item|-
-5|35|13|Value of power increase|-
-6|48|7|Probability of power increase|-
-7|55|13|Value of power decrease|-
-8|68|7|Probability of power decrease|-
-9|75|6|Level of magic item|MUST NOT decrease
-10|81|4|Amount of extensions|MUST NOT descrease
+5|35|10|Value of power increase|-
+6|45|7|Probability of power increase|-
+7|52|10|Value of power decrease|-
+8|62|7|Probability of power decrease|-
+9|69|7|Level of magic item|MUST NOT decrease
+10|76|8|Counter of applied modifiers|MUST NOT descrease
+11|81|4|Amount of extensions|MUST NOT descrease
 
 If the number of extensions is not zero, then an array of extensions follows. Each item of array has the structure:
 
