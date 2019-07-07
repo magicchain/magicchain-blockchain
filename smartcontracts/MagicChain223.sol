@@ -56,7 +56,7 @@ contract MagicChain223 {
     uint private _totalSupplyLimit;
 
     address private _owner;
-    address private _coldStorage;
+    address public ColdStorage;
     uint private _coldStorageOut;
 
     modifier onlyOwner() {
@@ -72,19 +72,19 @@ contract MagicChain223 {
         // all emitted tokens will be available in 2 years
         _totalSupplyLimit=_initialSupply*2;
         _firstBlock=block.number;
-        _coldStorage=address(this);
+        ColdStorage=address(this);
         _coldStorageOut=0;
         _balances[_owner]=_initialSupply;
 
         bytes memory empty;
         emit Transfer(address(0), _owner, _initialSupply, empty);
-        emit Transfer(address(0), _coldStorage, _totalSupplyLimit.sub(_initialSupply), empty);
+        emit Transfer(address(0), ColdStorage, _totalSupplyLimit.sub(_initialSupply), empty);
     }
 
     function setColdStorage(address _newColdStorage) public onlyOwner {
         bytes memory empty;
-        emit Transfer(_coldStorage, _newColdStorage, balanceOf(_coldStorage), empty);
-        _coldStorage=_newColdStorage;
+        emit Transfer(ColdStorage, _newColdStorage, balanceOf(ColdStorage), empty);
+        ColdStorage=_newColdStorage;
     }
 
     /**
@@ -134,7 +134,7 @@ contract MagicChain223 {
      */
     function _transfer(address _from, address _to, uint _value, bytes memory _data) internal {
         require(_to!=address(0), "Transfer to zero-address is forbidden");
-        require(_to!=_coldStorage, "Transfer to cold wallet is forbidden");
+        require(_to!=ColdStorage, "Transfer to cold wallet is forbidden");
 
         uint codeLength;
         assembly {
@@ -142,7 +142,7 @@ contract MagicChain223 {
             codeLength:=extcodesize(_to)
         }
 
-        if(_from==_coldStorage) {
+        if(_from==ColdStorage) {
             require(unfreezed().sub(_coldStorageOut)>=_value, "Not enough tokens in cold wallet");
             _coldStorageOut=_coldStorageOut.add(_value);
         } else {
@@ -175,9 +175,16 @@ contract MagicChain223 {
      * @param _holder The address whose balance will be returned.
      * @return uint Balance of the `_holder`.
      */
-    function balanceOf(address _holder) view public returns(uint) {
-        if(_holder==_coldStorage) {
-            return _totalSupplyLimit.sub(_initialSupply).sub(_coldStorageOut);
+    function balanceOf(address _holder) view public returns(uint) 
+    {
+        if(_holder ==ColdStorage) 
+        {
+            uint u = block.number.sub(_firstBlock).mul(_unfreezeTokensPerBlock).sub(_coldStorageOut);
+            if(u > _totalSupplyLimit.sub(_initialSupply)) 
+            {
+                u = _totalSupplyLimit.sub(_initialSupply);
+            }
+            return u;
         }
         return _balances[_holder];
     }
