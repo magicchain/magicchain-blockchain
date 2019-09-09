@@ -81,10 +81,22 @@ def mulPoint(pt, k):
 
     return res
 
+def validateInputPrivateKey(privateKey):
+    if not isinstance(privateKey, (bytes, int)):
+        raise TypeError("Private key must be bytes or int")
+    if isinstance(privateKey, bytes):
+        if len(privateKey)!=32:
+            raise ValueError("Invalid private key length")
+        privateKey=int.from_bytes(privateKey, "big")
+
+    return privateKey
+
 def makePublicKey(privateKey):
-    # TODO: privkey must be bytes
-    # TODO: result must be bytes (public key is some common format)
-    return mulPoint((Gx, Gy), privateKey)
+    privateKey=validateInputPrivateKey(privateKey)
+
+    x,y=mulPoint((Gx, Gy), privateKey)
+
+    return x.to_bytes(32, "big")+y.to_bytes(32, "big")
 
 def rfc6979_bits2int(bits):
     if len(bits)>32:
@@ -141,6 +153,8 @@ def rfc6979_genk(hash, privateKey):
 def makeSignature(hash, privateKey):
     global q
 
+    privateKey=validateInputPrivateKey(privateKey)
+
     h=rfc6979_bits2int(hash)%q
 
     for k in rfc6979_genk(hash, privateKey):
@@ -148,6 +162,12 @@ def makeSignature(hash, privateKey):
         r,overflow=(rx,0) if rx<q else (rx-q,2)
         if r==0:
             continue
+
+        # Ethereum Yellow Paper doesn't allow q<=rx<p (see statement between
+        # (279) and (280) formulae), so we just iterate in such case
+        if overflow:
+            continue
+
         v=overflow+(ry%2)
         s=modinv(k, q)*(h+r*privateKey)%q
         if s==0:
@@ -159,10 +179,13 @@ def makeSignature(hash, privateKey):
 
         break
 
-    return (r,s,v)
+    return (r.to_bytes(32, "big"), s.to_bytes(32, "big"), v)
 
 def recoverPublicKey(r, s, v, hash):
     global p, q
+
+    r=int.from_bytes(r, "big")
+    s=int.from_bytes(s, "big")
 
     h=rfc6979_bits2int(hash)%q
 
@@ -184,17 +207,19 @@ def recoverPublicKey(r, s, v, hash):
     sR=mulPoint((rx, ry), s)
     hG=mulPoint((Gx, -Gy), h)
 
-    return mulPoint(addPoints(sR, hG), r1)
+    x,y=mulPoint(addPoints(sR, hG), r1)
+
+    return x.to_bytes(32, "big")+y.to_bytes(32, "big")
 
 
 if __name__=="__main__":
     privkey=0x0e5c7fb8a2d0f8d6113e0b0d6822681f66cf42cfa72dabf5ed49070fc374e331
     pubkey=makePublicKey(privkey)
 
-    print("{0:x},{1:x}".format(*pubkey))
+    print("{0}".format(pubkey.hex()))
 
     r, s, v=makeSignature(hashlib.sha256(b"Hello").digest(), privkey)
-    print("{0:x},{1:x},{2}".format(r, s, v))
+    print("{0},{1},{2}".format(r.hex(), s.hex(), v))
 
     pk=recoverPublicKey(r, s, v, hashlib.sha256(b"Hello").digest())
-    print("{0:x},{1:x}".format(*pk))
+    print("{0}".format(pk.hex()))
