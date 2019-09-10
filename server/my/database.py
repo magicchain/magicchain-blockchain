@@ -75,6 +75,14 @@ class MysqlDatabaseConnection:
                 blockNumber BIGINT UNSIGNED NOT NULL,
                 PRIMARY KEY(coin)
             );""")
+
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS ethPrivateKeys
+            (
+                address VARCHAR(42) NOT NULL,
+                privateKey VARCHAR(64) NOT NULL,
+                PRIMARY KEY(address)
+            );""")
+
         self.db.cursor().execute("SET sql_notes = 1;")
         self.db.commit()
 
@@ -213,6 +221,13 @@ class MysqlDatabaseConnection:
 
         for t in cur.fetchall():
             yield MysqlDatabaseConnection.__tupleToDeposit(t)
+
+    def getPrivateKey(self, address):
+        cur=self.db.cursor()
+        if cur.execute("SELECT privateKey FROM ethPrivateKeys WHERE address=%s;", (address,))==0:
+            return None
+
+        return bytes.fromhex(cur.fetchone()[0])
 
     @staticmethod
     def __tupleToDepositAddress(t):

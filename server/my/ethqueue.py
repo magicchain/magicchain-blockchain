@@ -3,6 +3,7 @@
 # BTC:1Maniaccv5vSQVuwrmRtfazhf2WsUJ1KyD DOGE:DManiac9Gk31A4vLw9fLN9jVDFAQZc2zPj
 
 from .nodepool import *
+from .ethbuildtx import *
 import time
 
 
@@ -39,9 +40,11 @@ class Queue:
             txobject["to"]=info.receiver
             txobject["value"]="0x{:x}".format(info.value)
 
-            #txobject["gasPrice"]=
             txobject["gas"]="0x{:x}".format(1000000)
             txobject["data"]="0x"+info.data.hex()
+
+            txobject["gasPrice"]=node.eth_gasPrice()
+            txobject["nonce"]=node.eth_getTransactionCount(info.sender, "latest")
 
             try:
                 txobject["gas"]=node.eth_estimateGas(txobject)
@@ -49,14 +52,20 @@ class Queue:
             except:
                 pass
 
+            privateKey=self.db.getPrivateKey(info.sender)
+
+            rawtx="0x"+build(privateKey=privateKey, **txobject).hex()
+            print(rawtx)
+
             # TODO: keep passwords somewhere
             # TODO+: sing transactions
-            node.personal_unlockAccount(info.sender, "1")
+            #node.personal_unlockAccount(info.sender, "1")
 
             # send tx
             # TODO: use raw transaction instead
             self.db.updateTransaction(uuid=uuid, status=2, sendTime=int(time.time()), gasLimit=txobject["gas"])
-            txhash=node.eth_sendTransaction(txobject)
+            #txhash=node.eth_sendTransaction(txobject)
+            txhash=node.eth_sendRawTransaction(rawtx)
 
             # TODO: store txhash into db
             self.db.updateTransaction(uuid=uuid, status=3, txhash=txhash)
