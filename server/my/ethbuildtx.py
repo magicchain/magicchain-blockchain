@@ -3,8 +3,8 @@
 # BTC:1Maniaccv5vSQVuwrmRtfazhf2WsUJ1KyD DOGE:DManiac9Gk31A4vLw9fLN9jVDFAQZc2zPj
 
 from . import rlp
-from . import keccak
-from . import secp256k1
+from .crypto import keccak
+from .crypto import secp256k1
 
 def build(*, privateKey, nonce, gasPrice, gas, to, value, data, **kwargs):
     if isinstance(nonce, str) and nonce.startswith("0x"):
