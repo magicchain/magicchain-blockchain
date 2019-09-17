@@ -20,10 +20,19 @@ class DatabaseConnectionFactory:
             raise ValueError("Unsupported database driver {}".format(driver))
 
 class MysqlDatabaseConnection:
+    currentDatabaseVersion=1
+
     def __init__(self, *, host, user, password, dbname):
         import pymysql
         self.db=pymysql.connect(host=host, user=user, passwd=password, db=dbname)
         self.db.cursor().execute("SET sql_notes = 0;")
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS dbVersion
+            (
+                fake INT NOT NULL,
+                version INT NOT NULL,
+                PRIMARY KEY(fake)
+            );""")
+
         self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositAddresses
             (
                 coin VARCHAR(30) NOT NULL,
@@ -48,11 +57,11 @@ class MysqlDatabaseConnection:
                 sender VARCHAR(42) NOT NULL,
                 receiver VARCHAR(42) NOT NULL,
                 value VARCHAR(66) NOT NULL,
-                gasLimit VARCHAR(66) NOT NULL,
-                gasPrice VARCHAR(66) NOT NULL,
-                nonce VARCHAR(66) NOT NULL,
+                gasLimit VARCHAR(66) DEFAULT NULL,
+                gasPrice VARCHAR(66) DEFAULT NULL,
+                nonce VARCHAR(66) DEFAULT NULL,
                 data BLOB NOT NULL,
-                txhash VARCHAR(66),
+                txhash VARCHAR(66) DEFAULT NULL,
                 PRIMARY KEY(uuid)
             );""")
 
@@ -83,8 +92,15 @@ class MysqlDatabaseConnection:
                 PRIMARY KEY(address)
             );""")
 
+        self.db.cursor().execute("INSERT IGNORE INTO dbVersion SET fake=0, version=%s;", (self.currentDatabaseVersion,))
+
         self.db.cursor().execute("SET sql_notes = 1;")
         self.db.commit()
+
+        if self.__getDatabaseVersion()<1: self.__migrate_0to1()
+        #if self.__getDatabaseVersion()<2: self.__migrate_1to2()
+        #if self.__getDatabaseVersion()<3: self.__migrate_2to3()
+        assert self.__getDatabaseVersion()==self.currentDatabaseVersion
 
     def getExistingDepositAddress(self, *, coin, userid):
         cur=self.db.cursor()
@@ -140,7 +156,7 @@ class MysqlDatabaseConnection:
 
     def addPendingTransaction(self, *, uuid, chainid, sender, receiver, value, data):
         self.db.cursor().execute(
-            "INSERT IGNORE INTO ethTransactions SET uuid=%(uuid)s, chainid=%(chainid)s, creationTime=%(ctime)s, sendTime=NULL, status=1, sender=%(sender)s, receiver=%(receiver)s, value=%(value)s, gasLimit='0x0', gasPrice='0x0', nonce='0x0', data=%(data)s, txhash=NULL;",
+            "INSERT IGNORE INTO ethTransactions SET uuid=%(uuid)s, chainid=%(chainid)s, creationTime=%(ctime)s, sendTime=NULL, status=1, sender=%(sender)s, receiver=%(receiver)s, value=%(value)s, data=%(data)s;",
             dict(
                 uuid=uuid,
                 chainid=chainid,
@@ -165,14 +181,29 @@ class MysqlDatabaseConnection:
         for t in cur.fetchall():
             yield MysqlDatabaseConnection.__tupleToTransaction(t)
 
+    def findHighestNonce(self, *, sender):
+        with self.db.cursor() as cur:
+            # This wouldn't work since nonce is the database is stored as hex
+            # cur.execute("SELECT MAX(nonce) FROM ethTransactions WHERE sender=%s AND nonce IS NOT NULL;", (sender,))
+            # return cur.fetchone()[0]
+
+            if cur.execute("SELECT nonce FROM ethTransactions WHERE sender=%s AND nonce IS NOT NULL AND status>=2;", (sender,))==0:
+                return None
+
+            return max((int(nonce, 16) for (nonce,) in cur.fetchall()))
+
     def updateTransaction(self, *, uuid, **kwargs):
         exprs=[]
         args=dict(uuid=uuid)
 
-        for name in ("sendTime", "status", "txhash", "gasPrice", "gasLimit"):
+        for name in ("sendTime", "status", "txhash"):
             if name in kwargs:
                 exprs.append(name+"=%("+name+")s")
                 args[name]=kwargs[name]
+        for name in ("gasPrice", "gasLimit", "nonce"):
+            if name in kwargs:
+                exprs.append(name+"=%("+name+")s")
+                args[name]="0x{:x}".format(kwargs[name])
 
         self.db.cursor().execute("UPDATE ethTransactions SET "+", ".join(exprs)+" WHERE uuid=%(uuid)s;", args)
         self.db.commit()
@@ -252,9 +283,9 @@ class MysqlDatabaseConnection:
             sender,
             receiver,
             int(value, 16),
-            int(gasLimit, 16),
-            int(gasPrice, 16),
-            int(nonce, 16),
+            None if gasLimit is None else int(gasLimit, 16),
+            None if gasPrice is None else int(gasPrice, 16),
+            None if nonce is None else int(nonce, 16),
             data,
             txhash)
 
@@ -270,3 +301,25 @@ class MysqlDatabaseConnection:
             userid,
             int(amount, 0),
             tokenId)
+
+    def __getDatabaseVersion(self):
+        with self.db.cursor() as cur:
+            cur.execute("SELECT version FROM dbVersion WHERE fake=0;")
+            return cur.fetchone()[0]
+
+    def __migrate_0to1(self):
+        # v0->v1 - new status codes were introduced, so convert them. Some fields' definition
+        # has changed (DEFAULT NULL instead of NOT NULL).
+
+        self.db.cursor().execute("""ALTER TABLE ethTransactions
+                                        CHANGE gasLimit gasLimit VARCHAR(66) DEFAULT NULL,
+                                        CHANGE gasPrice gasPrice VARCHAR(66) DEFAULT NULL,
+                                        CHANGE nonce nonce VARCHAR(66) DEFAULT NULL,
+                                        CHANGE txhash txhash VARCHAR(66) DEFAULT NULL;
+                                 """)
+
+        self.db.cursor().execute("UPDATE ethTransactions SET status=5 WHEREstatus=3;")
+        self.db.cursor().execute("UPDATE ethTransactions SET status=1 WHEREstatus=2;")
+        self.db.cursor().execute("UPDATE ethTransactions SET nonce=NULL, gasPrice=NULL, gasLimit=NULL;")
+        self.db.cursor().execute("UPDATE dbVersion SET version=1 WHERE fake=0;")
+        self.db.commit()
