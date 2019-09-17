@@ -12,5 +12,13 @@ class NodePool:
     def connectToAnyNode(self, chainid):
         for n in self.config:
             if n["chainId"]==chainid:
-                return jsonrpclib.Server("http://{0}:{1}".format(n["address"], n["port"]))
+                s=jsonrpclib.Server("http://{0}:{1}".format(n["address"], n["port"]))
+                # Check if server is alive
+                try:
+                    s.jsonrpctest()
+                except jsonrpclib.jsonrpc.ProtocolError:
+                    pass
+                except:
+                    return None
+                return s
         return None
