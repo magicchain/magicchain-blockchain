@@ -260,6 +260,10 @@ class MysqlDatabaseConnection:
 
         return bytes.fromhex(cur.fetchone()[0])
 
+    def storePrivateKey(self, address, privateKey):
+        self.db.cursor().execute("INSERT IGNORE INTO ethPrivateKeys SET address=%s, privateKey=%s;", (address, privateKey.hex()));
+        self.db.commit()
+
     @staticmethod
     def __tupleToDepositAddress(t):
         coin, userid, status, txuuid, address, extra1name, extra1value, extra2name, extra2value=t

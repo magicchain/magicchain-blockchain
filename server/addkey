@@ -1,0 +1,49 @@
+#! /usr/bin/env python3
+
+import sys, argparse, json, getpass
+import my
+from my.crypto import scrypt, keccak, aesctr
+
+
+def generateKeystream_scrypt(password, *, salt, n, r, p, dklen):
+    return scrypt.scrypt(password, bytes.fromhex(salt), n, r, p, dklen)
+
+def generateKeystream(password, kdf, kdfparams):
+    if kdf=="scrypt":
+        return generateKeystream_scrypt(password, **kdfparams)
+    else:
+        return None
+
+config=my.Config()
+db=my.DatabaseConnectionFactory.connect(config["database"])
+
+parser=argparse.ArgumentParser(description="Add ethereum private key(s) to database")
+parser.add_argument("keystore", nargs="*", help="Path of geth-compatible keystore file")
+args=parser.parse_args()
+
+for filename in args.keystore:
+    j=json.load(open(filename, "rt"))
+    if j.get("version")!=3:
+        print("{}: unsupported keystore format version".format(filename))
+        continue
+
+    if ("crypto" not in j):
+        print("{}: unsupported keystore format".format(filename))
+        continue
+
+    address="0x"+j["address"]
+    password=getpass.getpass("Password for {}: ".format(address)).encode("utf8")
+
+    keystream=generateKeystream(password, j["crypto"]["kdf"], j["crypto"]["kdfparams"])
+    cipherkey=keystream[0:16]
+    mackey=keystream[16:32]
+    privkey=bytes.fromhex(j["crypto"]["ciphertext"])
+
+    mac=keccak.keccak(mackey+privkey, 1088, 256, 0x01)
+    if mac!=bytes.fromhex(j["crypto"]["mac"]):
+        print("{}: invalid password".format(address))
+        continue
+
+    privkey=aesctr.decrypt(bytes.fromhex(j["crypto"]["cipherparams"]["iv"]), cipherkey, privkey)
+
+    db.storePrivateKey(address, privkey)
