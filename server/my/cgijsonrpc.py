@@ -10,13 +10,10 @@ class JsonRPCException(Exception):
         self.message=message
 
 class Handler:
-    def __init__(self, *, keyid=None, key=None):
-        self.methods={}
+    def __init__(self, *, keyid=None, key=None, registry):
         self.hmacKeyId=keyid
         self.hmacKey=key and binascii.a2b_hex(key)
-
-    def addMethod(self, name, function):
-        self.methods[name]=function
+        self.registry=registry
 
     def run(self):
         if os.environ.get("REQUEST_METHOD")!="POST":
@@ -94,16 +91,16 @@ class Handler:
         # Find corresponding method handler, invoke it
 
         method=requestObject["method"]
-        if method not in self.methods:
+        if method not in self.registry:
             return None if isNotification else Handler.makeErrorReply(-32601, "Method not found", id)
 
         try:
             if "params" not in requestObject:
-                res=self.methods[method]()
+                res=self.registry[method]()
             elif isinstance(requestObject["params"], list):
-                res=self.methods[method](*requestObject["params"])
+                res=self.registry[method](*requestObject["params"])
             else:
-                res=self.methods[method](**requestObject["params"])
+                res=self.registry[method](**requestObject["params"])
         except (TypeError, ValueError):
             return None if isNotification else Handler.makeErrorReply(-32602, "Invalid params", id)
         except JsonRPCException as e:

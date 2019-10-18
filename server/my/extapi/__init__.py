@@ -4,5 +4,5 @@
 
 from . import ethcontract
 
-def register(*, db, config, handler):
-    ethcontract.register(db=db, config=config, handler=handler)
+def register(*, db, config, registry):
+    ethcontract.register(db=db, config=config, registry=registry)

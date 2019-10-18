@@ -8,15 +8,18 @@ import binascii
 config=my.Config()
 db=my.DatabaseConnectionFactory.connect(config["database"])
 
+reg=my.rpcreg.Registry()
+
+reg.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
+reg.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
+reg.addMethod("send", my.rpc.Send(db=db, config=config))
+my.extapi.register(db=db, config=config, registry=reg)
+
+#reg.addMethod("estimate-fee", my.rpc.EstimateFee(config=config, registry=reg))
+
 h=my.cgijsonrpc.Handler(
     keyid=config.get("security", {}).get("hmac-keyid", None),
-    key=config.get("security", {}).get("hmac-key", None))
-
-h.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
-h.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
-h.addMethod("send", my.rpc.Send(db=db, config=config))
-# TODO: estimate-fee
-
-my.extapi.register(db=db, config=config, handler=h)
+    key=config.get("security", {}).get("hmac-key", None),
+    registry=reg)
 
 h.run()

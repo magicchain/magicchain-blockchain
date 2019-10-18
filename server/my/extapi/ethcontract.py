@@ -69,12 +69,12 @@ class FunctionInvocation:
             value=0,
             data=txdata)
 
-def register(*, db, config, handler):
+def register(*, db, config, registry):
     for coinDescription in ethconfig.listCoinDescriptions(config):
         for apiDescription in coinDescription.extAPI:
             try:
                 if apiDescription["type"]=="sendTransaction":
-                    handler.addMethod(
+                    registry.addMethod(
                         apiDescription["name"],
                         FunctionInvocation(
                             db=db,

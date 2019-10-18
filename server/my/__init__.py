@@ -10,3 +10,4 @@ from . import rpc
 from . import generators
 from . import scanners
 from . import extapi
+from . import rpcreg
