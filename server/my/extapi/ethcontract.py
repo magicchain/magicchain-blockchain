@@ -4,6 +4,7 @@
 
 from .. import ethconfig
 from .. import ethqueue
+from .. import ethfee
 
 class FunctionInvocation:
     def __init__(self, *, db, config, chainid, contract, sender, selector, argtypes):
@@ -16,6 +17,17 @@ class FunctionInvocation:
         self.argtypes=argtypes
 
     def __call__(self, uuid, args):
+        queue=ethqueue.Queue(db=self.db, config=self.config)
+        queue.sendTransaction(
+            uuid=uuid,
+            **self.__makeTxArgs(args))
+
+    def estimateFee(self, args):
+        return ethfee.estimateFee(
+            config=self.config,
+            **self.__makeTxArgs(args))
+
+    def __makeTxArgs(self, args):
         if not isinstance(args, list):
             raise TypeError('"args" argument must be an array')
 
@@ -60,14 +72,13 @@ class FunctionInvocation:
 
         txdata+=tail
 
-        queue=ethqueue.Queue(db=self.db, config=self.config)
-        queue.sendTransaction(
-            uuid=uuid,
+        return dict(
             chainid=self.chainid,
             sender=self.sender,
             receiver=self.contract,
             value=0,
             data=txdata)
+
 
 def register(*, db, config, registry):
     for coinDescription in ethconfig.listCoinDescriptions(config):
