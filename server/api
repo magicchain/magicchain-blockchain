@@ -13,9 +13,8 @@ reg=my.rpcreg.Registry()
 reg.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
 reg.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
 reg.addMethod("send", my.rpc.Send(db=db, config=config))
+reg.addMethod("estimate-fee", my.rpc.EstimateFee(registry=reg))
 my.extapi.register(db=db, config=config, registry=reg)
-
-#reg.addMethod("estimate-fee", my.rpc.EstimateFee(config=config, registry=reg))
 
 h=my.cgijsonrpc.Handler(
     keyid=config.get("security", {}).get("hmac-keyid", None),

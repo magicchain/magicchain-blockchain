@@ -102,3 +102,9 @@ def listCoinDescriptions(config):
                     contract=erc721["contract"],
                     parentCoinSymbol=chainConfig["symbol"],
                     extAPI=erc721.get("extAPI", []))
+
+def getPrimaryCoinSymbol(*, config, chainid):
+    for desc in listCoinDescriptions(config):
+        if desc.type=="" and desc.chainid==chainid:
+            return desc.symbol
+    return None

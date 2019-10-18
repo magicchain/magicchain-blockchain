@@ -394,8 +394,8 @@ any amount of time.
 
 ### Parameters
 
-- `request-name` - name of request;
-- `request-params` - all parameters of the request except uuid.
+- `requestname` - name of request;
+- `requestparams` - all parameters of the request except uuid.
 
 Example:
 
@@ -405,8 +405,8 @@ Example:
         "method": "estimate-fee",
         "params":
         {
-            "request-name": "send",
-            "request-params":
+            "requestname": "send",
+            "requestparams":
             {
                 "coin": "ETH",
                 "amount: "1000000000000000000",

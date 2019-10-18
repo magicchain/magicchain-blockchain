@@ -4,6 +4,7 @@
 
 from .. import ethconfig
 from .. import ethqueue
+from .. import ethfee
 import re
 
 
@@ -17,14 +18,12 @@ def isCoinNameAccepted(*, config, coin):
 
     return True
 
-def send(*, db, config, uuid, coin, amount, tokenId, recipient):
+def __makeTxArgs(*, config, coin, amount, tokenId, recipient):
     coinDescription=ethconfig.findCoinDescription(config=config, coin=coin)
     assert coinDescription is not None
 
     if not isinstance(recipient, str) or re.fullmatch("0x[0-9a-fA-F]{40}", recipient) is None:
         raise ValueError("Invalid recipient address {}".format(recipient))
-
-    queue=ethqueue.Queue(db=db, config=config)
 
     if coinDescription.type=="":
         try:
@@ -35,8 +34,7 @@ def send(*, db, config, uuid, coin, amount, tokenId, recipient):
         if tokenId is not None:
             raise ValueError("TokenID is not applicable to coin {}".format(coin))
 
-        queue.sendTransaction(
-            uuid=uuid,
+        return dict(
             chainid=coinDescription.chainid,
             sender=coinDescription.hotWallet,
             receiver=recipient,
@@ -52,8 +50,7 @@ def send(*, db, config, uuid, coin, amount, tokenId, recipient):
         if tokenId is not None:
             raise ValueError("TokenID is not applicable to coin {}".format(coin))
 
-        queue.sendTransaction(
-            uuid=uuid,
+        return dict(
             chainid=coinDescription.chainid,
             sender=coinDescription.hotWallet,
             receiver=coinDescription.contract,
@@ -68,11 +65,32 @@ def send(*, db, config, uuid, coin, amount, tokenId, recipient):
         if not isinstance(tokenId, str) or re.fullmatch("0x[0-9a-fA-F]{64}", tokenId) is None:
             raise ValueError("Invalid TokenID format")
 
-        queue.sendTransaction(
-            uuid=uuid,
+        return dict(
             chainid=coinDescription.chainid,
             sender=coinDescription.hotWallet,
             receiver=coinDescription.contract,
             value=0,
             # safeTransferFrom(address, address, uint256)
             data=b"\x42\x84\x2e\x0e"+12*b'\0'+bytes.fromhex(coinDescription.hotWallet[2:])+12*b'\0'+bytes.fromhex(recipient[2:])+bytes.fromhex(tokenId[2:]))
+
+
+def send(*, db, config, uuid, coin, amount, tokenId, recipient):
+    queue=ethqueue.Queue(db=db, config=config)
+    queue.sendTransaction(
+        uuid=uuid,
+        **__makeTxArgs(
+            config=config,
+            coin=coin,
+            amount=amount,
+            tokenId=tokenId,
+            recipient=recipient))
+
+def estimateFee(*, config, coin, amount, tokenId, recipient):
+    return ethfee.estimateFee(
+        config=config,
+        **__makeTxArgs(
+            config=config,
+            coin=coin,
+            amount=amount,
+            tokenId=tokenId,
+            recipient=recipient))

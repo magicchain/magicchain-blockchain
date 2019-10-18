@@ -24,3 +24,12 @@ class Send:
             return None
         except:
             raise cgijsonrpc.JsonRPCException(-1001, "Duplicate UUID")
+
+    def estimateFee(self, coin, amount, tokenId, recipient, **kwargs):
+        return hotwallet.estimateFee(
+            config=self.config,
+            coin=coin,
+            amount=amount,
+            tokenId=tokenId,
+            recipient=recipient,
+            **kwargs)
