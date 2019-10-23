@@ -4,11 +4,14 @@
 
 from .nodepool import *
 from . import ethconfig
+from .cgijsonrpc import JsonRPCException
 
 
 def estimateFee(*, config, chainid, sender, receiver, value, data):
     nodepool=NodePool(config=config)
     node=nodepool.connectToAnyNode(chainid)
+    if not node:
+        raise JsonRPCException(-1002, "No live ethereum node found")
 
     # Get current gas price
     gasPrice=int(node.eth_gasPrice(), 16)
