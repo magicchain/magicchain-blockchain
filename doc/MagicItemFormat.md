@@ -62,31 +62,28 @@ To control content of magic items contract MagicChain721 functions can be used.
 ## Mint tokens with specified content
 
     /**
-     * @dev Function to mint tokens.
-     * @param to The address that will receive the minted tokens.
-     * @param tokenId The token id to mint.
-     * @param enableTime since enableTime token will become available.
-     * @return A boolean that indicates if the operation was successful.
+     * @dev Function to mint tokens
+     * @param to The address that will receive the minted tokens
+     * @param item content of minted token
+     * @return ID of minted token
      */
-    function mint(address to, uint256 tokenId,
-                  uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4,
-                  string memory uri, uint256 enableTime) public onlyOwner returns (bool);
+    function mint(address to, uint256 tokenId, uint256[5] memory item) public onlyWhitelistAdmin returns (uint256);
 
 ## Get content for specified token
 
     /**
      * @dev Returns content for a given token ID.
      * Throws if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to query
+     * @param tokenID uint256 ID of the token to query
      */
-    function tokenContent(uint256 tokenId) external view returns (uint256, uint256, uint256, uint256, uint256);
+    function tokenContent(uint256 tokenID) external view returns (uint256[5] memory);
 
 ## Set content for specified token
 
     /**
-     * @dev Function to set the token content for a given token.
+     * @dev Function to set the token content for specified token.
      * Reverts if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to set its content
+     * @param tokenID uint256 ID of the token to set its content
+     * @param item new token's content
      */
-    function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4)
-    onlyOwner public;
+    function setTokenContent(uint256 tokenID, uint256[5] memory item) onlyWhitelistAdmin public;

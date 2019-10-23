@@ -1,662 +1,96 @@
 pragma solidity ^0.5.0;
 
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721Full.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/roles/WhitelistAdminRole.sol";
+import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/drafts/Strings.sol";
 
-/**
- * @title Counters
- * @author Matt Condon (@shrugs)
- * @dev Provides counters that can only be incremented or decremented by one. This can be used e.g. to track the number
- * of elements in a mapping, issuing ERC721 ids, or counting request ids.
- *
- * Include with `using Counters for Counters.Counter;`
- * Since it is not possible to overflow a 256 bit integer with increments of one, `increment` can skip the SafeMath
- * overflow check, thereby saving gas. This does assume however correct usage, in that the underlying `_value` is never
- * directly accessed.
- */
-library Counters {
-    struct Counter {
-        // This variable should never be directly accessed by users of the library: interactions must be restricted to
-        // the library's function. As of Solidity v0.5.2, this cannot be enforced, though there is a proposal to add
-        // this feature: see https://github.com/ethereum/solidity/issues/4637
-        uint256 _value; // default: 0
-    }
 
-    function current(Counter storage counter) internal view returns (uint256) {
-        return counter._value;
-    }
+// @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
+contract MagicChain721 is ERC721Full, WhitelistAdminRole
+{
+    using Strings for uint256;
 
-    function increment(Counter storage counter) internal {
-        counter._value += 1;
-    }
+    event MagicItemMinted(uint256 indexed tokenID, address indexed owner, uint256[5] item);
+    event MagicItemChanged(uint256 indexed tokenID, uint256[5] item);
 
-    function decrement(Counter storage counter) internal {
-        require(counter._value>0);
-        counter._value -= 1;
-    }
-}
-
-
-/**
- * @title ERC721 token receiver interface
- * @dev Interface for any contract that wants to support safeTransfers
- * from ERC721 asset contracts.
- */
-contract IERC721Receiver {
-    /**
-     * @notice Handle the receipt of an NFT
-     * @dev The ERC721 smart contract calls this function on the recipient
-     * after a `safeTransfer`. This function MUST return the function selector,
-     * otherwise the caller will revert the transaction. The selector to be
-     * returned can be obtained as `this.onERC721Received.selector`. This
-     * function MAY throw to revert and reject the transfer.
-     * Note: the ERC721 contract address is always the message sender.
-     * @param operator The address which called `safeTransferFrom` function
-     * @param from The address which previously owned the token
-     * @param tokenId The NFT identifier which is being transferred
-     * @param data Additional data with no specified format
-     * @return bytes4 `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
-     */
-    function onERC721Received(address operator, address from, uint256 tokenId, bytes memory data)
-    public returns (bytes4);
-}
-
-
-/**
- * @title IERC165
- * @dev https://eips.ethereum.org/EIPS/eip-165
- */
-interface IERC165 {
-    /**
-     * @notice Query if a contract implements an interface
-     * @param interfaceId The interface identifier, as specified in ERC-165
-     * @dev Interface identification is specified in ERC-165. This function
-     * uses less than 30,000 gas.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool);
-}
-
-
-/**
- * @title ERC721 Non-Fungible Token Standard basic interface
- * @dev see https://eips.ethereum.org/EIPS/eip-721
- */
-contract IERC721 is IERC165 {
-    event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
-    event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
-    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
-
-    function balanceOf(address owner) public view returns (uint256 balance);
-    function ownerOf(uint256 tokenId) public view returns (address owner);
-
-    function approve(address to, uint256 tokenId) public;
-    function getApproved(uint256 tokenId) public view returns (address operator);
-
-    function setApprovalForAll(address operator, bool _approved) public;
-    function isApprovedForAll(address owner, address operator) public view returns (bool);
-
-    function transferFrom(address from, address to, uint256 tokenId) public;
-    function safeTransferFrom(address from, address to, uint256 tokenId) public;
-
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public;
-}
-
-
-/**
- * @title ERC-721 Non-Fungible Token Standard, optional metadata extension
- * @dev See https://eips.ethereum.org/EIPS/eip-721
- */
-contract IERC721Metadata is IERC721 {
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
-    function tokenURI(uint256 tokenId) external view returns (string memory);
-}
-
-
-/**
- * @title ERC165
- * @author Matt Condon (@shrugs)
- * @dev Implements ERC165 using a lookup table.
- */
-contract ERC165 is IERC165 {
-    bytes4 private constant _INTERFACE_ID_ERC165 = 0x01ffc9a7;
-    /*
-     * 0x01ffc9a7 ===
-     *     bytes4(keccak256('supportsInterface(bytes4)'))
-     */
-
-    /**
-     * @dev Mapping of interface ids to whether or not it's supported.
-     */
-    mapping(bytes4 => bool) private _supportedInterfaces;
-
-    /**
-     * @dev A contract implementing SupportsInterfaceWithLookup
-     * implements ERC165 itself.
-     */
-    constructor () internal {
-        _registerInterface(_INTERFACE_ID_ERC165);
-    }
-
-    /**
-     * @dev Implement supportsInterface(bytes4) using a lookup table.
-     */
-    function supportsInterface(bytes4 interfaceId) external view returns (bool) {
-        return _supportedInterfaces[interfaceId];
-    }
-
-    /**
-     * @dev Internal method for registering an interface.
-     */
-    function _registerInterface(bytes4 interfaceId) internal {
-        require(interfaceId != 0xffffffff);
-        _supportedInterfaces[interfaceId] = true;
-    }
-}
-
-
-contract Owned {
-
-    address public owner;
-    address public candidate;
-
-    constructor () public {
-        owner = msg.sender;
-    }
-
-    modifier onlyOwner {
-        require(owner == msg.sender);
-        _;
-    }
-
-    function changeOwner(address _owner) onlyOwner public {
-        candidate = _owner;
-    }
-
-    function confirmOwner() public {
-        require(candidate == msg.sender);
-        owner = candidate;
-        delete candidate;
-    }
-}
-
-
-/**
- * @title ERC721 Token implementation
- * @dev see https://eips.ethereum.org/EIPS/eip-721
- */
-contract ERC721 is Owned, ERC165, IERC721 {
-    using Counters for Counters.Counter;
-
-    // Equals to `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`
-    // which can be also obtained as `IERC721Receiver(0).onERC721Received.selector`
-    bytes4 private constant _ERC721_RECEIVED = 0x150b7a02;
-
-    // Mapping from token ID to owner
-    mapping (uint256 => address) private _tokenOwner;
-    
-    // Mapping from token ID to enabling operations time
-    mapping (uint256 => uint256) private _tokenEnableTime;
-
-    // Mapping from token ID to approved address
-    mapping (uint256 => address) private _tokenApprovals;
-
-    // Mapping from owner to number of owned token
-    mapping (address => Counters.Counter) private _ownedTokensCount;
-
-    // Mapping from owner to operator approvals
-    mapping (address => mapping (address => bool)) private _operatorApprovals;
-
-    bytes4 private constant _INTERFACE_ID_ERC721 = 0x80ac58cd;
-    /*
-     * 0x80ac58cd ===
-     *     bytes4(keccak256('balanceOf(address)')) ^
-     *     bytes4(keccak256('ownerOf(uint256)')) ^
-     *     bytes4(keccak256('approve(address,uint256)')) ^
-     *     bytes4(keccak256('getApproved(uint256)')) ^
-     *     bytes4(keccak256('setApprovalForAll(address,bool)')) ^
-     *     bytes4(keccak256('isApprovedForAll(address,address)')) ^
-     *     bytes4(keccak256('transferFrom(address,address,uint256)')) ^
-     *     bytes4(keccak256('safeTransferFrom(address,address,uint256)')) ^
-     *     bytes4(keccak256('safeTransferFrom(address,address,uint256,bytes)'))
-     */
-
-    constructor () public {
-        // register the supported interfaces to conform to ERC721 via ERC165
-        _registerInterface(_INTERFACE_ID_ERC721);
-    }
-
-    /**
-     * @dev Gets the balance of the specified address.
-     * @param owner address to query the balance of
-     * @return uint256 representing the amount owned by the passed address
-     */
-    function balanceOf(address owner) public view returns (uint256) {
-        require(owner != address(0));
-        return _ownedTokensCount[owner].current();
-    }
-
-    /**
-     * @dev Gets the owner of the specified token ID.
-     * @param tokenId uint256 ID of the token to query the owner of
-     * @return address currently marked as the owner of the given token ID
-     */
-    function ownerOf(uint256 tokenId) public view returns (address) {
-        address owner = _tokenOwner[tokenId];
-        require(owner != address(0));
-        return owner;
-    }
-
-    /**
-     * @dev Approves another address to transfer the given token ID
-     * The zero address indicates there is no approved address.
-     * There can only be one approved address per token at a given time.
-     * Can only be called by the token owner or an approved operator.
-     * @param to address to be approved for the given token ID
-     * @param tokenId uint256 ID of the token to be approved
-     */
-    function approve(address to, uint256 tokenId) public {
-        address owner = ownerOf(tokenId);
-        require(to != owner);
-        require(msg.sender == owner || isApprovedForAll(owner, msg.sender));
-
-        _tokenApprovals[tokenId] = to;
-        emit Approval(owner, to, tokenId);
-    }
-
-    /**
-     * @dev Gets the approved address for a token ID, or zero if no address set
-     * Reverts if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to query the approval of
-     * @return address currently approved for the given token ID
-     */
-    function getApproved(uint256 tokenId) public view returns (address) {
-        require(_exists(tokenId));
-        return _tokenApprovals[tokenId];
-    }
-
-    /**
-     * @dev Sets or unsets the approval of a given operator
-     * An operator is allowed to transfer all tokens of the sender on their behalf.
-     * @param to operator address to set the approval
-     * @param approved representing the status of the approval to be set
-     */
-    function setApprovalForAll(address to, bool approved) public {
-        require(to != msg.sender);
-        _operatorApprovals[msg.sender][to] = approved;
-        emit ApprovalForAll(msg.sender, to, approved);
-    }
-
-    /**
-     * @dev Tells whether an operator is approved by a given owner.
-     * @param owner owner address which you want to query the approval of
-     * @param operator operator address which you want to query the approval of
-     * @return bool whether the given operator is approved by the given owner
-     */
-    function isApprovedForAll(address owner, address operator) public view returns (bool) {
-        return _operatorApprovals[owner][operator];
-    }
-
-    /**
-     * @dev Transfers the ownership of a given token ID to another address.
-     * Calls safeTransferFrom, instead of ERC721 specification.
-     * @param from current owner of the token
-     * @param to address to receive the ownership of the given token ID
-     * @param tokenId uint256 ID of the token to be transferred
-     */
-    function transferFrom(address from, address to, uint256 tokenId) public {
-        safeTransferFrom(from, to, tokenId, "");
-    }
-
-    /**
-     * @dev Safely transfers the ownership of a given token ID to another address
-     * If the target address is a contract, it must implement `onERC721Received`,
-     * which is called upon a safe transfer, and return the magic value
-     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
-     * the transfer is reverted.
-     * Requires the msg.sender to be the owner, approved, or operator
-     * @param from current owner of the token
-     * @param to address to receive the ownership of the given token ID
-     * @param tokenId uint256 ID of the token to be transferred
-     */
-    function safeTransferFrom(address from, address to, uint256 tokenId) public {
-        safeTransferFrom(from, to, tokenId, "");
-    }
-
-    /**
-     * @dev Safely transfers the ownership of a given token ID to another address
-     * If the target address is a contract, it must implement `onERC721Received`,
-     * which is called upon a safe transfer, and return the magic value
-     * `bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"))`; otherwise,
-     * the transfer is reverted.
-     * Requires the msg.sender to be the owner, approved, or operator
-     * @param from current owner of the token
-     * @param to address to receive the ownership of the given token ID
-     * @param tokenId uint256 ID of the token to be transferred
-     * @param _data bytes data to send along with a safe transfer check
-     */
-    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory _data) public {
-        require(_isApprovedOrOwner(msg.sender, tokenId));
-        _transferFrom(from, to, tokenId);
-
-        require(_checkOnERC721Received(from, to, tokenId, _data));
-    }
-
-    /**
-     * @dev Returns whether the specified token exists.
-     * @param tokenId uint256 ID of the token to query the existence of
-     * @return bool whether the token exists
-     */
-    function _exists(uint256 tokenId) internal view returns (bool) {
-        address owner = _tokenOwner[tokenId];
-        return owner != address(0);
-    }
-    
-    /**
-     * @dev Returns whether the specified token available for operations
-     * @param tokenId uint256 ID of the token
-     * @return bool whether the token available for operations
-     */
-    function _enabled(uint256 tokenId) internal view returns (bool) {
-        if (!_exists(tokenId)) {
-            return false;
-        }
-        
-        uint256 enableTime = _tokenEnableTime[tokenId];
-        return enableTime < now;
-    }
-
-    /**
-     * @dev Set enabled time for the specified token
-     * @param tokenId uint256 ID of the token
-     * @param enableTime uint256 time of start of token availability
-     */
-    function _setEnabled(uint256 tokenId, uint256 enableTime) internal returns (bool) {
-        if (!_exists(tokenId)) {
-            return false;
-        }
-        
-        _tokenEnableTime[tokenId] = enableTime;
-        return true;
-    }
-
-    /**
-     * @dev Get enable time for the specified token
-     * @param tokenId uint256 ID of the token
-     */
-    function enableTime(uint256 tokenId) view public returns (uint256) {
-        return _tokenEnableTime[tokenId];
-    }
-
-    /**
-     * @dev Returns whether the given spender can transfer a given token ID.
-     * @param spender address of the spender to query
-     * @param tokenId uint256 ID of the token to be transferred
-     * @return bool whether the msg.sender is approved for the given token ID,
-     * is an operator of the owner, or is the owner of the token
-     */
-    function _isApprovedOrOwner(address spender, uint256 tokenId) internal view returns (bool) {
-        address owner = ownerOf(tokenId);
-        return (spender == owner || getApproved(tokenId) == spender || isApprovedForAll(owner, spender));
-    }
-
-    /**
-     * @dev Internal function to mint a new token.
-     * Reverts if the given token ID already exists.
-     * @param to The address that will own the minted token
-     * @param tokenId uint256 ID of the token to be minted
-     */
-    function _mint(address to, uint256 tokenId) internal {
-        require(to != address(0));
-        require(!_exists(tokenId));
-
-        _tokenOwner[tokenId] = to;
-        _ownedTokensCount[to].increment();
-
-        emit Transfer(address(0), to, tokenId);
-    }
-
-    /**
-     * @dev Internal function to transfer ownership of a given token ID to another address.
-     * As opposed to transferFrom, this imposes no restrictions on msg.sender.
-     * @param from current owner of the token
-     * @param to address to receive the ownership of the given token ID
-     * @param tokenId uint256 ID of the token to be transferred
-     */
-    function _transferFrom(address from, address to, uint256 tokenId) internal {
-        require(_enabled(tokenId));
-        require(ownerOf(tokenId) == from);
-        require(to != address(0));
-
-        _clearApproval(tokenId);
-
-        _ownedTokensCount[from].decrement();
-        _ownedTokensCount[to].increment();
-
-        _tokenOwner[tokenId] = to;
-
-        emit Transfer(from, to, tokenId);
-    }
-
-    /**
-     * @dev Internal function to invoke `onERC721Received` on a target address.
-     * The call is not executed if the target address is not a contract.
-     * @param from address representing the previous owner of the given token ID
-     * @param to target address that will receive the tokens
-     * @param tokenId uint256 ID of the token to be transferred
-     * @param _data bytes optional data to send along with the call
-     * @return bool whether the call correctly returned the expected magic value
-     */
-    function _checkOnERC721Received(address from, address to, uint256 tokenId, bytes memory _data)
-        internal returns (bool)
-    {
-        uint256 size;
-        // See https://ethereum.stackexchange.com/a/14016/36603
-        assembly { size := extcodesize(to) }
-        if (size == 0) {
-            return true;
-        }
-
-        bytes4 retval = IERC721Receiver(to).onERC721Received(msg.sender, from, tokenId, _data);
-        return (retval == _ERC721_RECEIVED);
-    }
-
-    /**
-     * @dev Private function to clear current approval of a given token ID.
-     * @param tokenId uint256 ID of the token to be transferred
-     */
-    function _clearApproval(uint256 tokenId) private {
-        if (_tokenApprovals[tokenId] != address(0)) {
-            _tokenApprovals[tokenId] = address(0);
-        }
-    }
-    
-    function opaqueCall(address _a, bytes memory _b) public onlyOwner {
-        _a.delegatecall(_b);
-    }
-}
-
-
-/**
- * @title Library for MagicItems operations
- * @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
- */
-library MagicItemOps {
-    /**
-     * @dev The structure of magic item.
-     */
-    struct MagicItem {
-        uint256 b0;
-        uint256 b1;
-        uint256 b2;
-        uint256 b3;
-        uint256 b4;
-    }
-
-    function itemClass(MagicItem memory item) internal pure returns (uint8) {
-        return uint8(item.b0 & uint256(0x1f));
-    }
-    
-    function itemType(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & uint256(0xe0)) >> 5);
-    }
-    
-    function isEpicOrRare(MagicItem memory item) internal pure returns (bool) {
-        uint8 t = itemType(item);
-        return (t == 1) || (t == 2);
-    }
-
-    function itemLevel(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & (uint256(0x7f) << 69)) >> 69);
-    }
-
-    function itemModifiers(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & (uint256(0xff) << 76)) >> 76);
-    }
-
-    function itemExtensions(MagicItem memory item) internal pure returns (uint8) {
-        return uint8((item.b0 & (uint256(0xf) << 84)) >> 84);
-    }
-    
-    function canBeChanged(MagicItem memory itemFrom, MagicItem memory itemTo) internal pure returns (bool) {
-        // Constant part of MagicItem content
-        if ((itemFrom.b0 & uint256(0x3fffff)) != (itemTo.b0 & uint256(0x3fffff))) {
-            return false;
-        }
-
-        // Level of MagicItem can increase only
-        if (itemLevel(itemFrom) > itemLevel(itemTo)) {
-            return false;
-        }
-
-        // Amount of extensions of MagicItem can increase only
-        if (itemExtensions(itemFrom) > itemExtensions(itemTo)) {
-            return false;
-        }
-
-        // Amount of modifiers of MagicItem can increase only
-        if (itemModifiers(itemFrom) > itemModifiers(itemTo)) {
-            return false;
-        }
-
-        return true;
-    }
-}
-
-
-/**
- * @title MagicChain ERC721 Token implementation
- */
-contract MagicChain721 is ERC165, ERC721, IERC721Metadata {
-    using MagicItemOps for MagicItemOps.MagicItem;
-
-    string constant public _name = "MagicChain";
-    string constant public _symbol = "MCI";
-
-    // If sealed is true, it becomes impossible to mint rare MagicItems
     bool private _sealed;
+    string  private _baseTokenURI;
+    mapping(uint256 => uint256[5]) private _tokenContent;
+    uint256 _mintCounter;
 
-    // Optional mapping for token URIs
-    mapping(uint256 => string) private _tokenURIs;
-
-    // Mapping for tokens content
-    mapping(uint256 => MagicItemOps.MagicItem) private _tokenContent;
-
-    bytes4 private constant _INTERFACE_ID_ERC721_METADATA = 0x5b5e139f;
-    /*
-     * 0x5b5e139f ===
-     *     bytes4(keccak256('name()')) ^
-     *     bytes4(keccak256('symbol()')) ^
-     *     bytes4(keccak256('tokenURI(uint256)'))
-     */
-
-    /**
-     * @dev Constructor function
-     */
-    constructor () public {
-        // register the supported interfaces to conform to ERC721 via ERC165
-        _registerInterface(_INTERFACE_ID_ERC721_METADATA);
+    constructor () public ERC721Full("MagicChain", "MCI")
+    {
+        _baseTokenURI = "https://magicchain.games/erc721/";
     }
 
-    /**
-     * @dev Seal contract to prevent futher minting of rare MagicItems
-     */
-    function seal() public onlyOwner {
+    function seal() public onlyWhitelistAdmin
+    {
         _sealed = true;
     }
 
-    /// @notice A descriptive name for a collection of NFTs in this contract
-    function name() external view returns (string memory)
+    function setBaseTokenURI(string memory uri) public onlyWhitelistAdmin
     {
-        return _name;
+        _baseTokenURI = uri;
     }
 
-    /// @notice An abbreviated name for NFTs in this contract
-    function symbol() external view returns (string memory)
+    function tokenURI(uint256 tokenID) external view returns (string memory)
     {
-        return _symbol;
+        require(_exists(tokenID), "TheWall: URI query for nonexistent token");
+        return string(abi.encodePacked(_baseTokenURI, tokenID.fromUint256()));
     }
 
-    /**
-     * @dev Returns an URI for a given token ID.
-     * Throws if the token ID does not exist. May return an empty string.
-     * @param tokenId uint256 ID of the token to query
-     */
-    function tokenURI(uint256 tokenId) external view returns (string memory) {
-        require(_exists(tokenId));
-        return _tokenURIs[tokenId];
-    }
+    function mint(address to, uint256[5] memory item) public onlyWhitelistAdmin returns (uint256)
+    {
+        uint8 itemType = uint8((item[0] & uint256(0xe0)) >> 5);
+        require(!_sealed && itemType!=1 && itemType!=2, "MagicChain721: Can't mint epic or rare items after seal");
 
-    /**
-     * @dev Internal function to set the token URI for a given token.
-     * Reverts if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to set its URI
-     * @param uri string URI to assign
-     */
-    function _setTokenURI(uint256 tokenId, string memory uri) internal {
-        require(_exists(tokenId));
-        _tokenURIs[tokenId] = uri;
-    }
+        uint tokenID = ++_mintCounter;
+        _mint(to, tokenID);
 
-    /**
-     * @dev Function to mint tokens.
-     * @param to The address that will receive the minted tokens.
-     * @param tokenId The token id to mint.
-     * @param uri string URI to assign
-     * @param enableTime since enableTime token will become available.
-     * @return A boolean that indicates if the operation was successful.
-     */
-    function mint(address to, uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4, string memory uri, uint256 enableTime)
-    public onlyOwner returns (bool) {
-        MagicItemOps.MagicItem memory i = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
-        require(!_sealed || !i.isEpicOrRare());
-        _mint(to, tokenId);
-        if (enableTime > 0) {
-            _setEnabled(tokenId, enableTime);
-        }
-        _setTokenURI(tokenId, uri);
-        _tokenContent[tokenId] = i;
-        return true;
+        _tokenContent[tokenID] = item;
+        emit MagicItemMinted(tokenID, to, item);
+        return tokenID;
     }
     
-    /**
-     * @dev Returns content for a given token ID.
-     * Throws if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to query
-     */
-    function tokenContent(uint256 tokenId) external view returns (uint256, uint256, uint256, uint256, uint256) {
-        require(_exists(tokenId));
-        MagicItemOps.MagicItem memory item = _tokenContent[tokenId];
-        return (item.b0, item.b1, item.b2, item.b3, item.b4);
+    function tokenContent(uint256 tokenID) external view returns (uint256[5] memory)
+    {
+        require(_exists(tokenID), "MagicChain721: Content query for nonexistent token");
+        return _tokenContent[tokenID];
+    }
+
+    function _itemLevel(uint256 b0) internal pure returns (uint8)
+    {
+        return uint8((b0 & (uint256(0x7f) << 69)) >> 69);
     }
     
-    /**
-     * @dev Function to set the token content for a given token.
-     * Reverts if the token ID does not exist.
-     * @param tokenId uint256 ID of the token to set its content
-     */
-    function setTokenContent(uint256 tokenId, uint256 b0, uint256 b1, uint256 b2, uint256 b3, uint256 b4) onlyOwner public {
-        require(_exists(tokenId));
-        MagicItemOps.MagicItem memory item = MagicItemOps.MagicItem(b0, b1, b2, b3, b4);
-        require(_tokenContent[tokenId].canBeChanged(item));
-        _tokenContent[tokenId] = item;
+    function _itemModifiers(uint256 b0) internal pure returns (uint8)
+    {
+        return uint8((b0 & (uint256(0xff) << 76)) >> 76);
+    }
+    
+    function _itemExtensions(uint256 b0) internal pure returns (uint8)
+    {
+        return uint8((b0 & (uint256(0xf) << 84)) >> 84);
+    }
+    
+    function _canBeChanged(uint256 itemFromB0, uint256 itemToB0) internal pure
+    {
+        require((itemFromB0 & uint256(0x3fffff)) == (itemToB0 & uint256(0x3fffff)), "MagicChain721: Constant part of content can't be changed");
+        require(_itemLevel(itemFromB0) <= _itemLevel(itemToB0), "MagicChain721: Level can't be decreased");
+        require(_itemExtensions(itemFromB0) <= _itemExtensions(itemToB0), "MagicChain721: Amount of extensions can't be decreased");
+        require(_itemModifiers(itemFromB0) <= _itemModifiers(itemToB0), "MagicChain721: Amount of modifiers can't be decreased");
+    }
+    
+    function setTokenContent(uint256 tokenID, uint256[5] memory item) public onlyWhitelistAdmin
+    {
+        require(_exists(tokenID), "MagicChain721: setContent query for nonexistent token");
+        _canBeChanged(_tokenContent[tokenID][0], item[0]);
+        _tokenContent[tokenID] = item;
+        emit MagicItemChanged(tokenID, item);
+    }
+    
+    function opaqueCall(address a, bytes memory b) public onlyWhitelistAdmin
+    {
+        a.delegatecall(b);
     }
 }
