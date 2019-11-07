@@ -50,7 +50,7 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
         require(!_sealed && itemType!=1 && itemType!=2, "MagicChain721: Can't mint epic or rare items after seal");
 
         uint tokenID = ++_mintCounter;
-        _mint(to, tokenID);
+        _safeMint(to, tokenID);
 
         _tokenContent[tokenID] = item;
         emit MagicItemMinted(tokenID, to, item);
