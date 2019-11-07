@@ -39,6 +39,11 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
         return string(abi.encodePacked(_baseTokenURI, tokenID.fromUint256()));
     }
 
+    function transferFrom(address from, address to, uint256 tokenId) public
+    {
+        safeTransferFrom(from, to, tokenId);
+    }
+
     function mint(address to, uint256[5] memory item) public onlyWhitelistAdmin returns (uint256)
     {
         uint8 itemType = uint8((item[0] & uint256(0xe0)) >> 5);
