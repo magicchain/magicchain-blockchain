@@ -78,12 +78,10 @@ Here's an example of configuration file:
     {
         "security":
         {
-            "hmac-key": "40a60d12ba89bf1943637a0c450b41399c5dc00d9042ad6a1eebcfdb17079f1d",
-            "outgoing-hmac-keyid": "a41391f6",
-            "incoming-nonce-window": 60000,
-            "incoming-nonce-strict-monotone": true
+            "hmac-key": "ac21f2c131b112381e75f1d490d39546bf80e862eeb6d264e67cc4161b9bb0e6",
+            "hmac-keyid": "7d6830d9"
         },
-        "notify-url": "http://127.0.0.1/cgi-bin/magicchain/notify",
+        "notify-url": "http://localhost/cgi-bin/magicchain/notify",
         "database":
         {
             "driver": "mysql",
@@ -105,41 +103,40 @@ Here's an example of configuration file:
             {
                 "chainId": "ETH-mainnet",
                 "symbol": "ETH",
+                "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+                "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
+                "hotWallet": "0x864faf6156947c730a49c11abf5843c5d304c257",
                 "ERC223":
                 [
                     {
-                        "symbol": "ETH:MAGI",
-                        "contract": "0x1111"
+                        "symbol": "MAGI",
+                        "contract": "0xc5661af817dda04796b5eb5d112f428c283ee555"
                     }
                 ],
                 "ERC721":
                 [
                     {
-                        "symbol": "ETH:MCI",
-                        "contract": "0x2222",
+                        "symbol": "MCI",
+                        "contract": "0x876b2ca6e4c229521ceacf3e25afac58a5699875",
                         "extAPI":
                         [
                             {
                                 "name": "MCI_setTokenContent",
-                                "sender": "0x3333",
-                                "args": ["uint256", "uint256", "uint256", "uint256", "uint256"],
-                                "selector": "2557e758"
+                                "type": "sendTransaction",
+                                "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                                "args": ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                                "selector": "d7ddae90"
                             },
                             {
                                 "name": "MCI_mint",
-                                "sender": "0x3333",
-                                "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "string", "uint256"],
-                                "selector": "0b1fd458"
+                                "type": "sendTransaction",
+                                "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                                "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                                "selector": "299bada0"
                             }
                         ]
                     }
                 ]
-            },
-            {
-                "chainId": "ETH-ropsten",
-                "symbol": "ROPSTEN",
-                "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
-                "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4"
             }
         ]
     }
@@ -317,6 +314,8 @@ request:
   included into `tx-confirmed` notification;
 - `args` - array of arguments of `setTokenContent` function. `uint256` arguments
   MUST be passed as strings in decimal or hexadecimal (with prefix `0x`) form.
+  Fixed-length arrays must be passed inlined (i.e. `uint256[2]` as two `uint256`
+  values).
 
 ### Response
 
@@ -333,7 +332,8 @@ MagicChain721 contract instance.
   included into `tx-confirmed` notification;
 - `args` - array of arguments of `mint` function. `uint256` arguments MUST be
   passed as strings in decimal or hexadecimal (with prefix `0x`) form. `string`
-  arguments are passed as is (respecting JSON escaping rules).
+  arguments are passed as is (respecting JSON escaping rules). Fixed-length
+  arrays must be passed inlined (i.e. `uint256[2]` as two `uint256` values).
 
 ### Response
 

@@ -1,10 +1,8 @@
 {
     "security":
     {
-        "hmac-key": "40a60d12ba89bf1943637a0c450b41399c5dc00d9042ad6a1eebcfdb17079f1d",
-        "outgoing-hmac-keyid": "a41391f6",
-        "incoming-nonce-window": 60000,
-        "incoming-nonce-strict-monotone": true
+        "hmac-key": "ac21f2c131b112381e75f1d490d39546bf80e862eeb6d264e67cc4161b9bb0e6",
+        "hmac-keyid": "7d6830d9"
     },
     "notify-url": "http://localhost/cgi-bin/magicchain/notify",
     "database":
@@ -60,22 +58,22 @@
             [
                 {
                     "symbol": "ROPSTEN:MCI",
-                    "contract": "0x037c111d93a401305ba0af141d05b0eaaad6ce1d",
+                    "contract": "0x876b2ca6e4c229521ceacf3e25afac58a5699875",
                     "extAPI":
                     [
                         {
                             "name": "ROPSTEN_MCI_setTokenContent",
                             "type": "sendTransaction",
-                            "sender": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
-                            "args": ["uint256", "uint256", "uint256", "uint256", "uint256"],
-                            "selector": "2557e758"
+                            "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                            "args": ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "d7ddae90"
                         },
                         {
                             "name": "ROPSTEN_MCI_mint",
                             "type": "sendTransaction",
-                            "sender": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
-                            "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256", "uint256", "string", "uint256"],
-                            "selector": "0b1fd458"
+                            "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                            "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "299bada0"
                         }
                     ]
                 }
