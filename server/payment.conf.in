@@ -1,0 +1,83 @@
+{
+    "security":
+    {
+        "hmac-key": "ac21f2c131b112381e75f1d490d39546bf80e862eeb6d264e67cc4161b9bb0e6",
+        "hmac-keyid": "7d6830d9"
+    },
+    "notify-url": "http://localhost/cgi-bin/magicchain/notify",
+    "database":
+    {
+        "driver": "mysql",
+        "host": "127.0.0.1",
+        "user": "mcpayment",
+        "password": "mcpayment",
+        "dbname": "mcpayment"
+    },
+    "nodes":
+    [
+        {
+            "chainId": "ETH-ropsten",
+            "address": "127.0.0.1",
+            "port": 8545
+        }
+    ],
+    "Ethereum":
+    [
+        {
+            "chainId": "ETH-mainnet",
+            "symbol": "ETH",
+            "ERC223":
+            [
+                {
+                    "symbol": "ETH:MAGI",
+                    "contract": "0x1111"
+                }
+            ],
+            "ERC721":
+            [
+                {
+                    "symbol": "ETH:MCI",
+                    "contract": "0x2222"
+                }
+            ]
+        },
+        {
+            "chainId": "ETH-ropsten",
+            "symbol": "ROPSTEN",
+            "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+            "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
+            "hotWallet": "0x864faf6156947c730a49c11abf5843c5d304c257",
+            "ERC223":
+            [
+                {
+                    "symbol": "ROPSTEN:MAGI",
+                    "contract": "0xc5661af817dda04796b5eb5d112f428c283ee555"
+                }
+            ],
+            "ERC721":
+            [
+                {
+                    "symbol": "ROPSTEN:MCI",
+                    "contract": "0x876b2ca6e4c229521ceacf3e25afac58a5699875",
+                    "extAPI":
+                    [
+                        {
+                            "name": "ROPSTEN_MCI_setTokenContent",
+                            "type": "sendTransaction",
+                            "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                            "args": ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "d7ddae90"
+                        },
+                        {
+                            "name": "ROPSTEN_MCI_mint",
+                            "type": "sendTransaction",
+                            "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
+                            "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "299bada0"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
