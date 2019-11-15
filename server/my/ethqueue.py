@@ -4,16 +4,16 @@
 
 from .nodepool import *
 from .ethbuildtx import *
-import time
+import sys, time
 import traceback
 
 
 class Queue:
     STATUS_FINISHED=0
     STATUS_PENDING=1
-    STATUS_NONCE_SET=2
+    STATUS_GAS_LIMIT_SET=2
     STATUS_GAS_PRICE_SET=3
-    STATUS_GAS_LIMIT_SET=4
+    STATUS_NONCE_SET=4
     STATUS_SENT=5
 
     def __init__(self, *, db, config):
@@ -39,6 +39,9 @@ class Queue:
 
         nodepool=NodePool(config=self.config)
         node=nodepool.connectToAnyNode(info.chainid)
+        if node is None:
+            print("No available nodes found", file=sys.stderr)
+            return
 
         # TODO: check balance as ealier as possible (before acquiring nonce)
 
@@ -46,6 +49,43 @@ class Queue:
 
 
         if info.status==self.STATUS_PENDING:
+            # Estimate GAS amount. Here we can detect "always failing" transactions
+
+            txobject={}
+            txobject["from"]=info.sender
+            txobject["to"]=info.receiver
+            txobject["value"]="0x{:x}".format(info.value)
+            txobject["data"]="0x"+info.data.hex()
+            txobject["gas"]="0x{:x}".format(5000000)
+
+            try:
+                txobject["gas"]=node.eth_estimateGas(txobject)
+                txobject["gas"]=node.eth_estimateGas(txobject)
+            except jsonrpclib.jsonrpc.ProtocolError as e:
+                if e.args[0][0]==-32000 and e.args[0][1].endswith("always failing transaction"):
+                    self.db.updateTransaction(uuid=uuid, status=-12)
+                    return
+            except:
+                return
+
+            info=info._replace(gasLimit=int(txobject["gas"], 16), status=self.STATUS_GAS_LIMIT_SET)
+            self.db.updateTransaction(uuid=uuid, status=info.status, gasLimit=info.gasLimit)
+
+            # Don't return, fall through instead
+
+        if info.status==self.STATUS_GAS_LIMIT_SET:
+            # Get current gas price
+            try:
+                gasPrice=int(node.eth_gasPrice(), 16)
+            except:
+                return
+
+            info=info._replace(gasPrice=gasPrice, status=self.STATUS_GAS_PRICE_SET)
+            self.db.updateTransaction(uuid=uuid, status=info.status, gasPrice=info.gasPrice)
+
+            # Don't return, fall through instead
+
+        if info.status==self.STATUS_GAS_PRICE_SET:
             # Choose nonce for new transaction
             try:
                 netNonce=int(node.eth_getTransactionCount(info.sender, "latest"), 16)
@@ -64,18 +104,7 @@ class Queue:
             # Don't return, fall through instead
 
         if info.status==self.STATUS_NONCE_SET:
-            # Get current gas price
-            try:
-                gasPrice=int(node.eth_gasPrice(), 16)
-            except:
-                return
-
-            info=info._replace(gasPrice=gasPrice, status=self.STATUS_GAS_PRICE_SET)
-            self.db.updateTransaction(uuid=uuid, status=info.status, gasPrice=info.gasPrice)
-
-            # Don't return, fall through instead
-
-        if info.status in (self.STATUS_GAS_PRICE_SET, self.STATUS_GAS_LIMIT_SET):
+            # send
             txobject={}
             txobject["from"]=info.sender
             txobject["to"]=info.receiver
@@ -83,35 +112,18 @@ class Queue:
             txobject["data"]="0x"+info.data.hex()
             txobject["nonce"]="0x{:x}".format(info.nonce)
             txobject["gasPrice"]="0x{:x}".format(info.gasPrice)
+            txobject["gas"]="0x{:x}".format(info.gasLimit)
 
-            if info.status==self.STATUS_GAS_PRICE_SET:
-                # estimate gas
-                txobject["gas"]="0x{:x}".format(1000000)
+            privateKey=self.db.getPrivateKey(info.sender)
 
-                try:
-                    txobject["gas"]=node.eth_estimateGas(txobject)
-                    txobject["gas"]=node.eth_estimateGas(txobject)
-                except:
-                    return
+            rawtx="0x"+build(privateKey=privateKey, **txobject).hex()
+            txhash=node.eth_sendRawTransaction(rawtx)
 
-                info=info._replace(gasLimit=int(txobject["gas"], 16), status=self.STATUS_GAS_LIMIT_SET)
-                self.db.updateTransaction(uuid=uuid, status=info.status, gasLimit=info.gasLimit)
-
-            if info.status==self.STATUS_GAS_LIMIT_SET:
-                # send
-                txobject["gas"]="0x{:x}".format(info.gasLimit)
-
-                privateKey=self.db.getPrivateKey(info.sender)
-
-                rawtx="0x"+build(privateKey=privateKey, **txobject).hex()
-                txhash=node.eth_sendRawTransaction(rawtx)
-
-                info=info._replace(txhash=txhash, status=self.STATUS_SENT)
-                self.db.updateTransaction(uuid=uuid, status=info.status, sendTime=int(time.time()), txhash=info.txhash)
+            info=info._replace(txhash=txhash, status=self.STATUS_SENT)
+            self.db.updateTransaction(uuid=uuid, status=info.status, sendTime=int(time.time()), txhash=info.txhash)
 
         if info.status==self.STATUS_SENT:
             # Wait for tx receipt
-
             try:
                 topBlock=int(node.eth_blockNumber(), 16)
             except:
@@ -125,7 +137,6 @@ class Queue:
 
             if receipt is None:
                 # TODO: too long? send again
-
                 pass
             else:
                 confirmations=topBlock-int(receipt["blockNumber"], 16)+1
