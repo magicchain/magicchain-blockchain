@@ -2,25 +2,21 @@ pragma solidity ^0.5.0;
 
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721Full.sol";
 import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/roles/WhitelistAdminRole.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/drafts/Strings.sol";
 
 
 // @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
 contract MagicChain721 is ERC721Full, WhitelistAdminRole
 {
-    using Strings for uint256;
-
     event MagicItemMinted(uint256 indexed tokenID, address indexed owner, uint256[5] item);
     event MagicItemChanged(uint256 indexed tokenID, uint256[5] item);
 
     bool private _sealed;
-    string  private _baseTokenURI;
     mapping(uint256 => uint256[5]) private _tokenContent;
     uint256 _mintCounter;
 
     constructor () public ERC721Full("MagicChain", "MCI")
     {
-        _baseTokenURI = "https://magicchain.games/erc721/";
+        _setBaseURI("https://magicchain.games/erc721/");
     }
 
     function seal() public onlyWhitelistAdmin
@@ -30,13 +26,7 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
 
     function setBaseTokenURI(string memory uri) public onlyWhitelistAdmin
     {
-        _baseTokenURI = uri;
-    }
-
-    function tokenURI(uint256 tokenID) external view returns (string memory)
-    {
-        require(_exists(tokenID), "TheWall: URI query for nonexistent token");
-        return string(abi.encodePacked(_baseTokenURI, tokenID.fromUint256()));
+        _setBaseURI(uri);
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public
