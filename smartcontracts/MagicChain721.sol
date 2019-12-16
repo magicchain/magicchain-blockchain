@@ -1,8 +1,8 @@
 pragma solidity ^0.5.0;
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721Full.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/roles/WhitelistAdminRole.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/contracts/drafts/Strings.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721Full.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/roles/WhitelistAdminRole.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/drafts/Strings.sol";
 
 
 // @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
@@ -13,14 +13,15 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
     event MagicItemMinted(uint256 indexed tokenID, address indexed owner, uint256[5] item);
     event MagicItemChanged(uint256 indexed tokenID, uint256[5] item);
 
-    bool private _sealed;
-    string  private _baseTokenURI;
     mapping(uint256 => uint256[5]) private _tokenContent;
-    uint256 _mintCounter;
+    bool    private _sealed;
+    uint256 private _mintCounter;
+    string  private _baseURI;
+
 
     constructor () public ERC721Full("MagicChain", "MCI")
     {
-        _baseTokenURI = "https://magicchain.games/erc721/";
+        _baseURI = "https://magicchain.games/erc721/";
     }
 
     function seal() public onlyWhitelistAdmin
@@ -28,15 +29,15 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
         _sealed = true;
     }
 
-    function setBaseTokenURI(string memory uri) public onlyWhitelistAdmin
+    function setBaseURI(string memory uri) public onlyWhitelistAdmin
     {
-        _baseTokenURI = uri;
+        _baseURI = uri;
     }
 
-    function tokenURI(uint256 tokenID) external view returns (string memory)
+    function tokenURI(uint256 tokenId) external view returns (string memory)
     {
-        require(_exists(tokenID), "TheWall: URI query for nonexistent token");
-        return string(abi.encodePacked(_baseTokenURI, tokenID.fromUint256()));
+        require(_exists(tokenId));
+        return string(abi.encodePacked(_baseURI, tokenId.fromUint256()));
     }
 
     function transferFrom(address from, address to, uint256 tokenId) public
