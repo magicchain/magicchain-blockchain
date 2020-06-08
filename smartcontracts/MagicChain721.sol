@@ -1,51 +1,43 @@
-pragma solidity ^0.5.0;
+//SPDX-License-Identifier: GNU lesser General Public License
 
-import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721Full.sol";
-import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/roles/WhitelistAdminRole.sol";
-import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/drafts/Strings.sol";
+pragma solidity ^0.6.0;
+
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/token/ERC721/ERC721.sol";
+import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 
 // @dev see https://github.com/magicchain/magicchain-blockchain/blob/master/doc/MagicItemFormat.md
-contract MagicChain721 is ERC721Full, WhitelistAdminRole
+contract MagicChain721 is ERC721, Ownable
 {
-    using Strings for uint256;
-
     event MagicItemMinted(uint256 indexed tokenID, address indexed owner, uint256[5] item);
     event MagicItemChanged(uint256 indexed tokenID, uint256[5] item);
 
     mapping(uint256 => uint256[5]) private _tokenContent;
     bool    private _sealed;
     uint256 private _mintCounter;
-    string  private _baseURI;
 
 
-    constructor () public ERC721Full("MagicChain", "MCI")
+    constructor () public ERC721("MagicChain", "MCI")
     {
-        _baseURI = "https://magicchain.games/erc721/";
+        _setBaseURI("https://magicchain.games/erc721/");
     }
 
-    function seal() public onlyWhitelistAdmin
+    function seal() public onlyOwner
     {
         _sealed = true;
     }
 
-    function setBaseURI(string memory uri) public onlyWhitelistAdmin
+    function setBaseURI(string memory uri) public onlyOwner
     {
-        _baseURI = uri;
+        _setBaseURI(uri);
     }
 
-    function tokenURI(uint256 tokenId) external view returns (string memory)
-    {
-        require(_exists(tokenId));
-        return string(abi.encodePacked(_baseURI, tokenId.fromUint256()));
-    }
-
-    function transferFrom(address from, address to, uint256 tokenId) public
+    function transferFrom(address from, address to, uint256 tokenId) public override
     {
         safeTransferFrom(from, to, tokenId);
     }
 
-    function mint(address to, uint256[5] memory item) public onlyWhitelistAdmin returns (uint256)
+    function mint(address to, uint256[5] memory item) public onlyOwner returns (uint256)
     {
         uint8 itemType = uint8((item[0] & uint256(0xe0)) >> 5);
         require(!_sealed && itemType!=1 && itemType!=2, "MagicChain721: Can't mint epic or rare items after seal");
@@ -87,16 +79,11 @@ contract MagicChain721 is ERC721Full, WhitelistAdminRole
         require(_itemModifiers(itemFromB0) <= _itemModifiers(itemToB0), "MagicChain721: Amount of modifiers can't be decreased");
     }
     
-    function setTokenContent(uint256 tokenID, uint256[5] memory item) public onlyWhitelistAdmin
+    function setTokenContent(uint256 tokenID, uint256[5] memory item) public onlyOwner
     {
         require(_exists(tokenID), "MagicChain721: setContent query for nonexistent token");
         _canBeChanged(_tokenContent[tokenID][0], item[0]);
         _tokenContent[tokenID] = item;
         emit MagicItemChanged(tokenID, item);
-    }
-    
-    function opaqueCall(address a, bytes memory b) public onlyWhitelistAdmin
-    {
-        a.delegatecall(b);
     }
 }
