@@ -10,7 +10,7 @@ import "github.com/OpenZeppelin/openzeppelin-contracts/contracts/access/Ownable.
 contract MagicChain721 is ERC721, Ownable
 {
     event MagicItemMinted(uint256 indexed tokenID, address indexed owner, uint256[5] item);
-    event MagicItemChanged(uint256 indexed tokenID, uint256[5] item);
+    event MagicItemChanged(uint256 indexed tokenID, address indexed owner, uint256[5] item);
 
     mapping(uint256 => uint256[5]) private _tokenContent;
     bool    private _sealed;
@@ -40,7 +40,7 @@ contract MagicChain721 is ERC721, Ownable
     function mint(address to, uint256[5] memory item) public onlyOwner returns (uint256)
     {
         uint8 itemType = uint8((item[0] & uint256(0xe0)) >> 5);
-        require(!_sealed && itemType!=1 && itemType!=2, "MagicChain721: Can't mint epic or rare items after seal");
+        require(!_sealed || (itemType!=1 && itemType!=2), "MagicChain721: Can't mint epic or rare items after seal");
 
         uint tokenID = ++_mintCounter;
         _safeMint(to, tokenID);
@@ -79,11 +79,12 @@ contract MagicChain721 is ERC721, Ownable
         require(_itemModifiers(itemFromB0) <= _itemModifiers(itemToB0), "MagicChain721: Amount of modifiers can't be decreased");
     }
     
-    function setTokenContent(uint256 tokenID, uint256[5] memory item) public onlyOwner
+    function setTokenContent(uint256 tokenID, address to, uint256[5] memory item) public onlyOwner
     {
         require(_exists(tokenID), "MagicChain721: setContent query for nonexistent token");
         _canBeChanged(_tokenContent[tokenID][0], item[0]);
         _tokenContent[tokenID] = item;
-        emit MagicItemChanged(tokenID, item);
+        safeTransferFrom(_msgSender(), to, tokenID);
+        emit MagicItemChanged(tokenID, to, item);
     }
 }
