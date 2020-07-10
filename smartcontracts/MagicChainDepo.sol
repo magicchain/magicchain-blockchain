@@ -1,4 +1,5 @@
-pragma solidity ^0.5.0;
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.6.0;
 
 
 contract Owned
@@ -61,9 +62,9 @@ contract DepositWallet
         userid=_userid;
     }
 
-    function() external payable
+    receive() external payable
     {
-        host.forwardETHDeposit.value(address(this).balance).gas(3000000)(userid);
+        host.forwardETHDeposit{value: address(this).balance, gas: 3000000}(userid);
     }
 
     function tokenFallback(address /*_from*/, uint _value, bytes calldata /*_data*/) external
@@ -123,9 +124,9 @@ contract DepositHost is Owned, AbstractDepositHost
         depositMaster=_depositMaster;
     }
 
-    function forwardETHDeposit(uint32 _userid) public payable
+    function forwardETHDeposit(uint32 _userid) external payable override
     {
-        (bool success, bytes memory data)=forwardAddress.call.gas(3000000).value(address(this).balance)("");
+        (bool success, bytes memory data)=forwardAddress.call{value: address(this).balance, gas: 3000000}("");
         require(success);
         require(data.length==0);
 
