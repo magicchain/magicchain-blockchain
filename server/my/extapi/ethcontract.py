@@ -7,7 +7,7 @@ from .. import ethqueue
 from .. import ethfee
 
 class FunctionInvocation:
-    def __init__(self, *, db, config, chainid, contract, sender, selector, argtypes):
+    def __init__(self, *, db, config, chainid, contract, sender, selector, argtypes, customResultHandler):
         self.db=db
         self.config=config
         self.chainid=chainid
@@ -15,6 +15,7 @@ class FunctionInvocation:
         self.sender=sender
         self.selector=selector
         self.argtypes=argtypes
+        self.customResultHandler=customResultHandler
 
     def __call__(self, uuid, args):
         queue=ethqueue.Queue(db=self.db, config=self.config)
@@ -77,7 +78,8 @@ class FunctionInvocation:
             sender=self.sender,
             receiver=self.contract,
             value=0,
-            data=txdata)
+            data=txdata,
+            customResultHandler=self.customResultHandler)
 
 
 def register(*, db, config, registry):
@@ -94,6 +96,7 @@ def register(*, db, config, registry):
                             contract=coinDescription.contract,
                             sender=apiDescription["sender"],
                             selector=apiDescription["selector"],
-                            argtypes=apiDescription["args"]))
+                            argtypes=apiDescription["args"],
+                            customResultHandler=apiDescription.get("customResult")))
             except (TypeError, KeyError):
                 pass

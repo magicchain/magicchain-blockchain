@@ -7,7 +7,7 @@ import time
 
 
 DepositAddress=collections.namedtuple("DepositAddress", ["coin", "userid", "status", "txuuid", "address", "extra"])
-ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "txhash"])
+ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "customResultHandler", "txhash", "result"])
 Deposit=collections.namedtuple("Deposit", ["coin", "txid", "vout", "notified", "blockNumber", "userid", "amount", "tokenId"])
 
 class DatabaseConnectionFactory:
@@ -20,7 +20,7 @@ class DatabaseConnectionFactory:
             raise ValueError("Unsupported database driver {}".format(driver))
 
 class MysqlDatabaseConnection:
-    currentDatabaseVersion=1
+    currentDatabaseVersion=2
 
     def __init__(self, *, host, user, password, dbname):
         import pymysql
@@ -61,8 +61,17 @@ class MysqlDatabaseConnection:
                 gasPrice VARCHAR(66) DEFAULT NULL,
                 nonce VARCHAR(66) DEFAULT NULL,
                 data BLOB NOT NULL,
+                customResultHandler VARCHAR(20) DEFAULT NULL,
                 txhash VARCHAR(66) DEFAULT NULL,
                 PRIMARY KEY(uuid)
+            );""")
+
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS ethResults
+            (
+                uuid VARCHAR(36) NOT NULL,
+                name VARCHAR(20) NOT NULL,
+                value VARCHAR(66),
+                PRIMARY KEY(uuid, name)
             );""")
 
         self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositTransactions
@@ -98,7 +107,7 @@ class MysqlDatabaseConnection:
         self.db.commit()
 
         if self.__getDatabaseVersion()<1: self.__migrate_0to1()
-        #if self.__getDatabaseVersion()<2: self.__migrate_1to2()
+        if self.__getDatabaseVersion()<2: self.__migrate_1to2()
         #if self.__getDatabaseVersion()<3: self.__migrate_2to3()
         assert self.__getDatabaseVersion()==self.currentDatabaseVersion
 
@@ -154,9 +163,20 @@ class MysqlDatabaseConnection:
         self.db.cursor().execute("UPDATE depositAddresses SET "+", ".join(exprs)+" WHERE coin=%(coin)s AND userid=%(userid)s;", args)
         self.db.commit()
 
-    def addPendingTransaction(self, *, uuid, chainid, sender, receiver, value, data):
+    def addPendingTransaction(self, *, uuid, chainid, sender, receiver, value, data, customResultHandler=None):
         self.db.cursor().execute(
-            "INSERT IGNORE INTO ethTransactions SET uuid=%(uuid)s, chainid=%(chainid)s, creationTime=%(ctime)s, sendTime=NULL, status=1, sender=%(sender)s, receiver=%(receiver)s, value=%(value)s, data=%(data)s;",
+            """INSERT IGNORE INTO ethTransactions
+            SET uuid=%(uuid)s,
+                chainid=%(chainid)s,
+                creationTime=%(ctime)s,
+                sendTime=NULL,
+                status=1,
+                sender=%(sender)s,
+                receiver=%(receiver)s,
+                value=%(value)s,
+                data=%(data)s,
+                customResultHandler=%(crh)s;
+            """,
             dict(
                 uuid=uuid,
                 chainid=chainid,
@@ -164,22 +184,27 @@ class MysqlDatabaseConnection:
                 sender=sender,
                 receiver=receiver,
                 value="0x{:x}".format(value),
-                data=data))
+                data=data,
+                crh=customResultHandler))
         self.db.commit()
 
     def getTransaction(self, uuid):
         cur=self.db.cursor()
         if cur.execute("SELECT * FROM ethTransactions WHERE uuid=%s;", (uuid,))==0:
             return None
+        t=cur.fetchone()
 
-        return MysqlDatabaseConnection.__tupleToTransaction(cur.fetchone())
+        cur.execute("SELECT name, value FROM ethResults WHERE uuid=%s;", (uuid,))
+        r=dict(cur.fetchall())
+
+        return MysqlDatabaseConnection.__tupleToTransaction((*t, r))
 
     def getPendingTransactions(self):
         cur=self.db.cursor()
         cur.execute("SELECT * FROM ethTransactions WHERE status>0;")
 
         for t in cur.fetchall():
-            yield MysqlDatabaseConnection.__tupleToTransaction(t)
+            yield MysqlDatabaseConnection.__tupleToTransaction((*t, {}))
 
     def findHighestNonce(self, *, sender):
         with self.db.cursor() as cur:
@@ -206,6 +231,10 @@ class MysqlDatabaseConnection:
                 args[name]="0x{:x}".format(kwargs[name])
 
         self.db.cursor().execute("UPDATE ethTransactions SET "+", ".join(exprs)+" WHERE uuid=%(uuid)s;", args)
+        if "result" in kwargs:
+            self.db.cursor().execute("DELETE FROM ethResults WHERE uuid=%s;", (uuid,))
+            for name, value in kwargs["result"].items():
+                self.db.cursor().execute("INSERT INTO ethResults SET uuid=%s, name=%s, value=%s;", (uuid, name, value))
         self.db.commit()
 
     def addNewDeposit(self, *, coin, txid, vout, blockNumber, userid, amount, tokenId):
@@ -277,7 +306,7 @@ class MysqlDatabaseConnection:
 
     @staticmethod
     def __tupleToTransaction(t):
-        uuid, chainid, creationTime, sendTime, status, sender, receiver, value, gasLimit, gasPrice, nonce, data, txhash=t
+        uuid, chainid, creationTime, sendTime, status, sender, receiver, value, gasLimit, gasPrice, nonce, data, customResultHandler, txhash, result=t
         return ETHTransaction(
             uuid,
             chainid,
@@ -291,7 +320,9 @@ class MysqlDatabaseConnection:
             None if gasPrice is None else int(gasPrice, 16),
             None if nonce is None else int(nonce, 16),
             data,
-            txhash)
+            customResultHandler,
+            txhash,
+            result)
 
     @staticmethod
     def __tupleToDeposit(t):
@@ -326,4 +357,21 @@ class MysqlDatabaseConnection:
         self.db.cursor().execute("UPDATE ethTransactions SET status=1 WHERE status=2;")
         self.db.cursor().execute("UPDATE ethTransactions SET nonce=NULL, gasPrice=NULL, gasLimit=NULL;")
         self.db.cursor().execute("UPDATE dbVersion SET version=1 WHERE fake=0;")
+        self.db.commit()
+
+    def __migrate_1to2(self):
+        # v1->v2 - copy all txhashes from "ethTransactions" table to "ethResults" table,
+        # add "customResultHandler" column
+
+        self.db.cursor().execute("""INSERT IGNORE INTO ethResults
+                                    SELECT uuid, 'txhash' AS name, txhash AS value
+                                    FROM ethTransactions
+                                    WHERE status=0;
+                                 """)
+
+        self.db.cursor().execute("""ALTER TABLE ethTransactions
+                                    ADD customResultHandler VARCHAR(20) DEFAULT NULL AFTER data;
+                                 """)
+
+        self.db.cursor().execute("UPDATE dbVersion SET version=2 WHERE fake=0;")
         self.db.commit()

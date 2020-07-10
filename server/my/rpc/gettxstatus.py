@@ -15,6 +15,6 @@ class GetTxStatus:
         elif tx.status>0:
             return dict(uuid=uuid, confirmed=False, pending=True, error=None)
         elif tx.status==0:
-            return dict(uuid=uuid, confirmed=True, pending=False, error=None, txhash=tx.txhash)
+            return dict(uuid=uuid, confirmed=True, pending=False, error=None, result=tx.result)
         else:
             return dict(uuid=uuid, confirmed=False, pendiing=False, error=status)

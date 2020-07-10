@@ -4,6 +4,7 @@
 
 from .nodepool import *
 from .ethbuildtx import *
+from . import extapi
 import sys, time
 import traceback
 
@@ -20,14 +21,15 @@ class Queue:
         self.db=db
         self.config=config
 
-    def sendTransaction(self, *, uuid, chainid, sender, receiver, value, data):
+    def sendTransaction(self, *, uuid, chainid, sender, receiver, value, data, customResultHandler=None):
         self.db.addPendingTransaction(
             uuid=uuid,
             chainid=chainid,
             sender=sender,
             receiver=receiver,
             value=value,
-            data=data)
+            data=data,
+            customResultHandler=customResultHandler)
 
     def getTransaction(self, uuid):
         return self.db.getTransaction(uuid)
@@ -143,6 +145,11 @@ class Queue:
 
                 if confirmations>=4:
                     if int(receipt["status"], 16)==1:
-                        self.db.updateTransaction(uuid=uuid, status=self.STATUS_FINISHED)
+                        result={"txhash": info.txhash}
+                        if info.customResultHandler is not None:
+                            customResultHandler=extapi.customResultHandler(info.customResultHandler)
+                            if customResultHandler is not None:
+                                result=customResultHandler(receipt, result)
+                        self.db.updateTransaction(uuid=uuid, status=self.STATUS_FINISHED, result=result)
                     else:
                         self.db.updateTransaction(uuid=uuid, status=-12)
