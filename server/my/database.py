@@ -322,8 +322,8 @@ class MysqlDatabaseConnection:
                                         CHANGE txhash txhash VARCHAR(66) DEFAULT NULL;
                                  """)
 
-        self.db.cursor().execute("UPDATE ethTransactions SET status=5 WHEREstatus=3;")
-        self.db.cursor().execute("UPDATE ethTransactions SET status=1 WHEREstatus=2;")
+        self.db.cursor().execute("UPDATE ethTransactions SET status=5 WHERE status=3;")
+        self.db.cursor().execute("UPDATE ethTransactions SET status=1 WHERE status=2;")
         self.db.cursor().execute("UPDATE ethTransactions SET nonce=NULL, gasPrice=NULL, gasLimit=NULL;")
         self.db.cursor().execute("UPDATE dbVersion SET version=1 WHERE fake=0;")
         self.db.commit()
