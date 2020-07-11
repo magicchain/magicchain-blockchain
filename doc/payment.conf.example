@@ -44,36 +44,44 @@
         {
             "chainId": "ETH-ropsten",
             "symbol": "ROPSTEN",
-            "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+            "depositContract": "0xf862ed9639040315c5c66234fcba1cb9bd80739d",
             "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
             "hotWallet": "0x864faf6156947c730a49c11abf5843c5d304c257",
             "ERC223":
             [
                 {
                     "symbol": "ROPSTEN:MAGI",
-                    "contract": "0xc5661af817dda04796b5eb5d112f428c283ee555"
+                    "contract": "0xdca7faefd26b87a0f5e9d9814b3372819ffd46b9"
                 }
             ],
             "ERC721":
             [
                 {
                     "symbol": "ROPSTEN:MCI",
-                    "contract": "0x876b2ca6e4c229521ceacf3e25afac58a5699875",
+                    "contract": "0x0bead51721ad217311eb97975ce526446346b998",
                     "extAPI":
                     [
                         {
                             "name": "ROPSTEN_MCI_setTokenContent",
                             "type": "sendTransaction",
                             "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
-                            "args": ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
-                            "selector": "d7ddae90"
+                            "args": ["uint256", "address", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                            "selector": "8447d0cc"
                         },
                         {
                             "name": "ROPSTEN_MCI_mint",
                             "type": "sendTransaction",
                             "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
                             "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256"],
-                            "selector": "299bada0"
+                            "selector": "299bada0",
+                            "customResult": "MCI_mint"
+                        },
+                        {
+                            "name": "ROPSTEN_MCI_tokenContent",
+                            "type": "call",
+                            "args": ["uint256"],
+                            "selector": "3969a1a5",
+                            "customResult": "MCI_tokenContent"
                         }
                     ]
                 }
