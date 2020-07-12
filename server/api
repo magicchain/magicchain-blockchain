@@ -14,6 +14,7 @@ reg.addMethod("get-address", my.rpc.GetAddress(db=db, config=config))
 reg.addMethod("get-tx-status", my.rpc.GetTxStatus(db=db))
 reg.addMethod("send", my.rpc.Send(db=db, config=config))
 reg.addMethod("estimate-fee", my.rpc.EstimateFee(registry=reg))
+reg.addMethod("list-deposits", my.rpc.ListDeposits(db=db))
 my.extapi.register(db=db, config=config, registry=reg)
 
 h=my.cgijsonrpc.Handler(

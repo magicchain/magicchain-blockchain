@@ -6,3 +6,4 @@ from .getaddress import *
 from .gettxstatus import *
 from .send import *
 from .estimatefee import *
+from .listdeposits import *

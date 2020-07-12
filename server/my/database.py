@@ -8,7 +8,7 @@ import time
 
 DepositAddress=collections.namedtuple("DepositAddress", ["coin", "userid", "status", "txuuid", "address", "extra"])
 ETHTransaction=collections.namedtuple("ETHTransaction", ["uuid", "chainid", "creationTime", "sendTime", "status", "sender", "receiver", "value", "gasLimit", "gasPrice", "nonce", "data", "customResultHandler", "txhash", "result"])
-Deposit=collections.namedtuple("Deposit", ["coin", "txid", "vout", "notified", "blockNumber", "userid", "amount", "tokenId"])
+Deposit=collections.namedtuple("Deposit", ["no", "coin", "txid", "vout", "blockNumber", "userid", "amount", "tokenId", "tokenContent"])
 
 class DatabaseConnectionFactory:
     @staticmethod
@@ -20,7 +20,7 @@ class DatabaseConnectionFactory:
             raise ValueError("Unsupported database driver {}".format(driver))
 
 class MysqlDatabaseConnection:
-    currentDatabaseVersion=2
+    currentDatabaseVersion=3
 
     def __init__(self, *, host, user, password, dbname):
         import pymysql
@@ -76,15 +76,21 @@ class MysqlDatabaseConnection:
 
         self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositTransactions
             (
+                no BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 coin VARCHAR(30) NOT NULL,
                 txid VARCHAR(80) NOT NULL,
                 vout BIGINT UNSIGNED NOT NULL,
-                notified TINYINT NOT NULL,
                 blockNumber BIGINT UNSIGNED NOT NULL,
                 userid BIGINT UNSIGNED,
                 amount VARCHAR(66),
                 tokenId VARCHAR(66),
-                PRIMARY KEY(coin, txid, vout)
+                content1 VARCHAR(66),
+                content2 VARCHAR(66),
+                content3 VARCHAR(66),
+                content4 VARCHAR(66),
+                content5 VARCHAR(66),
+                PRIMARY KEY(no),
+                UNIQUE INDEX(coin, txid, vout)
             );""")
 
         self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS lastScannedBlock
@@ -108,7 +114,7 @@ class MysqlDatabaseConnection:
 
         if self.__getDatabaseVersion()<1: self.__migrate_0to1()
         if self.__getDatabaseVersion()<2: self.__migrate_1to2()
-        #if self.__getDatabaseVersion()<3: self.__migrate_2to3()
+        if self.__getDatabaseVersion()<3: self.__migrate_2to3()
         assert self.__getDatabaseVersion()==self.currentDatabaseVersion
 
     def getExistingDepositAddress(self, *, coin, userid):
@@ -237,28 +243,27 @@ class MysqlDatabaseConnection:
                 self.db.cursor().execute("INSERT INTO ethResults SET uuid=%s, name=%s, value=%s;", (uuid, name, value))
         self.db.commit()
 
-    def addNewDeposit(self, *, coin, txid, vout, blockNumber, userid, amount, tokenId):
+    def addNewDeposit(self, *, coin, txid, vout, blockNumber, userid, amount, tokenId, tokenContent):
+        assert tokenContent is None or (isinstance(tokenContent, list) and len(tokenContent)==5)
+
+        if tokenContent is None:
+            tokenContent=[None, None, None, None, None]
+
         self.db.cursor().execute(
-            "INSERT IGNORE INTO depositTransactions SET coin=%(coin)s, txid=%(txid)s, vout=%(vout)s, notified=0, blockNumber=%(blockNumber)s, userid=%(userid)s, amount=%(amount)s, tokenId=%(tokenId)s;",
-            dict(
-                coin=coin,
-                txid=txid,
-                vout=vout,
-                blockNumber=blockNumber,
-                userid=userid,
-                amount=amount,
-                tokenId=tokenId))
+            """INSERT INTO depositTransactions
+            VALUES (NULL, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+            blockNumber=blockNumber;""",
+            (coin, txid, vout, blockNumber, userid, amount, tokenId, tokenContent[0], tokenContent[1], tokenContent[2], tokenContent[3], tokenContent[4]))
         self.db.commit()
 
-    def updateDeposit(self, *, coin, txid, vout, notified):
-        self.db.cursor().execute(
-            "UPDATE depositTransactions SET notified=%(notified)s WHERE coin=%(coin)s AND txid=%(txid)s AND vout=%(vout)s;",
-            dict(
-                coin=coin,
-                txid=txid,
-                vout=vout,
-                notified=int(notified)))
-        self.db.commit()
+    def listDeposits(self, start, limit):
+        with self.db.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM depositTransactions WHERE no>=%s ORDER BY no LIMIT %s;",
+                (start, limit))
+
+            return map(self.__tupleToDeposit, cur.fetchall())
 
     def getLastScannedBlock(self, *, coin):
         cur=self.db.cursor()
@@ -274,13 +279,6 @@ class MysqlDatabaseConnection:
                 coin=coin,
                 blockNumber=blockNumber))
         self.db.commit()
-
-    def getPendingDeposits(self):
-        cur=self.db.cursor()
-        cur.execute("SELECT * FROM depositTransactions WHERE notified=0;")
-
-        for t in cur.fetchall():
-            yield MysqlDatabaseConnection.__tupleToDeposit(t)
 
     def getPrivateKey(self, address):
         cur=self.db.cursor()
@@ -326,16 +324,20 @@ class MysqlDatabaseConnection:
 
     @staticmethod
     def __tupleToDeposit(t):
-        coin, txid, vout, notified, blockNumber, userid, amount, tokenId=t
+        no, coin, txid, vout, blockNumber, userid, amount, tokenId, tokenContent1, tokenContent2, tokenContent3, tokenContent4, tokenContent5=t
+        tokenContent=[tokenContent1, tokenContent2, tokenContent3, tokenContent4, tokenContent5]
+        if tokenContent==[None, None, None, None, None]:
+            tokenContent=None
         return Deposit(
+            no,
             coin,
             txid,
             vout,
-            notified,
             blockNumber,
             userid,
-            int(amount, 0),
-            tokenId)
+            amount,
+            tokenId,
+            tokenContent)
 
     def __getDatabaseVersion(self):
         with self.db.cursor() as cur:
@@ -374,4 +376,33 @@ class MysqlDatabaseConnection:
                                  """)
 
         self.db.cursor().execute("UPDATE dbVersion SET version=2 WHERE fake=0;")
+        self.db.commit()
+
+    def __migrate_2to3(self):
+        # v2->v3 - change "depositTransactions" table entirely, drop old data
+
+        self.db.cursor().execute("DROP TABLE depositTransactions;")
+
+        self.db.cursor().execute("""CREATE TABLE IF NOT EXISTS depositTransactions
+            (
+                no BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                coin VARCHAR(30) NOT NULL,
+                txid VARCHAR(80) NOT NULL,
+                vout BIGINT UNSIGNED NOT NULL,
+                blockNumber BIGINT UNSIGNED NOT NULL,
+                userid BIGINT UNSIGNED,
+                amount VARCHAR(66),
+                tokenId VARCHAR(66),
+                content1 VARCHAR(66),
+                content2 VARCHAR(66),
+                content3 VARCHAR(66),
+                content4 VARCHAR(66),
+                content5 VARCHAR(66),
+                PRIMARY KEY(no),
+                UNIQUE INDEX(coin, txid, vout)
+            );""")
+
+        self.db.cursor().execute("DELETE FROM lastScannedBlock;")
+
+        self.db.cursor().execute("UPDATE dbVersion SET version=3 WHERE fake=0;")
         self.db.commit()
