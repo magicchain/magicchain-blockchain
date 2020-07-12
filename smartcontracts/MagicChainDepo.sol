@@ -47,6 +47,7 @@ interface ERC721
 {
     function safeTransferFrom(address _from, address _to, uint256 _tokenId, bytes calldata _data) external payable;
     function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
+    function tokenContent(uint256 tokenID) external view returns (uint256[5] memory);
 }
 
 contract DepositWallet
@@ -101,6 +102,7 @@ contract DepositHost is Owned, AbstractDepositHost
     event ETHDeposit(uint32 userid, uint amountWei);
     event ERC223Deposit(address indexed contractAddress, uint32 userid, uint amount);
     event ERC721Deposit(address indexed contractAddress, uint32 userid, uint256 tokenId);
+    event ERC721Deposit(address indexed contractAddress, uint32 userid, uint256 tokenId, uint256[5] tokenContent);
     event NewDepositAddress(uint32 userid, address depositAddress);
 
     modifier onlyDepositMaster
@@ -171,7 +173,17 @@ contract DepositHost is Owned, AbstractDepositHost
                           uint8(byte(_data[1]))*(2**16)+
                           uint8(byte(_data[2]))*(2**8)+
                           uint8(byte(_data[3]));
-            emit ERC721Deposit(msg.sender, userid, _tokenId);
+
+            try ERC721(msg.sender).tokenContent(_tokenId) returns (uint256[5] memory tokenContent)
+            {
+                // MCI-specific
+                emit ERC721Deposit(msg.sender, userid, _tokenId, tokenContent);
+            }
+            catch (bytes memory /*lowLevelData*/)
+            {
+                // Generic ERC721
+                emit ERC721Deposit(msg.sender, userid, _tokenId);
+            }
         }
 
         return bytes4(keccak256("onERC721Received(address,address,uint256,bytes)"));
