@@ -4,7 +4,6 @@
         "hmac-key": "ac21f2c131b112381e75f1d490d39546bf80e862eeb6d264e67cc4161b9bb0e6",
         "hmac-keyid": "7d6830d9"
     },
-    "notify-url": "http://localhost/cgi-bin/magicchain/notify",
     "database":
     {
         "driver": "mysql",
