@@ -43,9 +43,9 @@ contract MagicChain721 is ERC721, Ownable
         require(!_sealed || (itemType!=1 && itemType!=2), "MagicChain721: Can't mint epic or rare items after seal");
 
         uint tokenID = ++_mintCounter;
-        _safeMint(to, tokenID);
-
         _tokenContent[tokenID] = item;
+        _safeMint(to, tokenID);
+        
         emit MagicItemMinted(tokenID, to, item);
         return tokenID;
     }
