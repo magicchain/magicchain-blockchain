@@ -1,0 +1,67 @@
+#! /usr/bin/env python3
+
+import sys, argparse, uuid, json, hmac, hashlib, binascii, requests, time
+
+
+def callMethod(url, hmackey, method, *args):
+    id=str(uuid.uuid4())
+
+    j={}
+    j["jsonrpc"]="2.0"
+    j["id"]=id
+    j["method"]=method
+    j["params"]=args
+
+    data=json.dumps(j).encode("utf8")
+
+    headers={}
+    headers["Content-Type"]="application/json"
+    if hmackey is not None:
+        digest=hmac.new(binascii.a2b_hex(hmackey[0]), data, hashlib.sha256).hexdigest()
+        headers["HMAC-Signature"]=digest
+
+    r=requests.post(url, data=data, headers=headers)
+    r.raise_for_status()
+
+    if hmackey is not None:
+        digest=hmac.new(binascii.a2b_hex(hmackey[0]), r.content, hashlib.sha256).hexdigest()
+        sig=r.headers.get("HMAC-Signature")
+        if digest!=sig:
+            raise Exception("HMAC signature verification failed")
+
+    j=r.json()
+    if j.get("id")!=id:
+        raise Exception("JSON-RPC 2.0 request-response id doesn't match")
+
+    if "result" in j:
+        return j["result"]
+    else:
+        raise Exception((j["error"]["code"], j["error"]["message"]))
+
+parser=argparse.ArgumentParser(description="MagicChain batch mint command-line tool")
+parser.add_argument("url", nargs=1, help="URL of JSON-RPC 2.0 server")
+parser.add_argument("address", nargs=1, help="Target address of MINT request")
+parser.add_argument("--hmackey", nargs=1)
+args=parser.parse_args()
+
+url=args.url[0]
+address=args.address[0]
+hmackey=args.hmackey
+if hmackey is not None:
+    hmackey=hmackey[0]
+
+uuids=[]
+for l in sys.stdin.readlines():
+    values=l.split(",")
+    u=str(uuid.uuid4())
+
+    callMethod(url, hmackey, "ROPSTEN_MCI_mint", u, [address]+values)
+    uuids.append(u)
+
+for u in uuids:
+    while True:
+        r=callMethod(url, hmackey, "get-tx-status", u)
+        if not r["pending"]:
+            break
+        time.sleep(15)
+    print(r["result"]["tokenId"])
