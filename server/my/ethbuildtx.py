@@ -32,5 +32,5 @@ def build(*, privateKey, nonce, gasPrice, gas, to, value, data, **kwargs):
         value,
         data,
         b'\x1b' if v==0 else b'\x1c',
-        r,
-        s])
+        int.from_bytes(r, "big"),
+        int.from_bytes(s, "big")])
