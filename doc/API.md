@@ -10,23 +10,20 @@ interpreted as described in RFC 2119.
 
 # Basics
 
-The protocol is based on JSON-RPC 2.0 with HTTP/1.x used as a transport. Both
-ends of communication MUST implement JSON-RPC 2.0 server since SERVER sends
-notifications to its counterparty. There MUST be exactly one counterparty with
-static IP-address specified in the SERVER's configuration file. In contrast,
-single counterparty MAY communicate with multiple SERVERs.
+The protocol is based on JSON-RPC 2.0 with HTTP/1.x used as a transport. SERVER
+doesn't send any requests to its counterparties, it just responds to their
+requests.
 
 All RPC requests MUST be sent to HTTP URL: `http://.../mc/v1/api` using POST
 method. Content-Type header field MUST be set to `application/json`.
 
 Both positional and named parameters of JSON-RPC requests are supported by the
-SERVER. Notification parameters (sent from the SERVER to its counterparty) are
-named.
+SERVER.
 
 # Security
 
-Both directions of communication between SERVER and its counterparty are
-protected from malicious modification by HMAC signatures.
+Both directions of communication between SERVER and its counterparty (requests
+and responses) are protected from malicious modification by HMAC signatures.
 
 Protection from malicious request duplication is either unnecessary or ensured
 by the nature of data passed.
@@ -40,8 +37,8 @@ would leak both keys anyway.
 
 ## From SERVER to counterparty
 
-All HTTP responses and HTTP requests with non-empty body sent from SERVER
-to its counterparty are signed with HMAC-SHA256 algorithm:
+All HTTP responses with non-empty body sent from SERVER to its counterparty
+are signed with HMAC-SHA256 algorithm:
 
 1. The key for HMAC-SHA256 algorithm is taken from the configuration file.
 2. HMAC-SHA256 signature of the body is calculated.
@@ -53,16 +50,13 @@ to its counterparty are signed with HMAC-SHA256 algorithm:
 
 ## From counterparty to SERVER
 
-All HTTP responses and HTTP requests with non-empty body sent to SERVER from
-its counterparty MUST be signed with HMAC-SHA256 algorithm.
+All HTTP requests with non-empty body sent to SERVER from its counterparty
+MUST be signed with HMAC-SHA256 algorithm.
 
 HMAC-SHA256 signature of request/response body is calculated. The result is
 compared with the value of the `HMAC-Signature` header field. If request
 signature doesn't match, `403 Forbidden` HTTP error is returned. If response
 signature doesn't match, the response is just ignored.
-
-HTTP responses and HTTP requests with empty body (only responses to JSON-RPC
-notifications match this condition) MAY be sent without a signature.
 
 # Configuration file
 
@@ -81,7 +75,6 @@ Here's an example of configuration file:
             "hmac-key": "ac21f2c131b112381e75f1d490d39546bf80e862eeb6d264e67cc4161b9bb0e6",
             "hmac-keyid": "7d6830d9"
         },
-        "notify-url": "http://localhost/cgi-bin/magicchain/notify",
         "database":
         {
             "driver": "mysql",
@@ -93,7 +86,7 @@ Here's an example of configuration file:
         "nodes":
         [
             {
-                "chainId": "ETH-mainnet",
+                "chainId": "ETH-ropsten",
                 "address": "127.0.0.1",
                 "port": 8545
             }
@@ -101,38 +94,46 @@ Here's an example of configuration file:
         "Ethereum":
         [
             {
-                "chainId": "ETH-mainnet",
-                "symbol": "ETH",
-                "depositContract": "0x340799eba29f70916fcec755157a9fb905ffa3b4",
+                "chainId": "ETH-ropsten",
+                "symbol": "ROPSTEN",
+                "depositContract": "0xf862ed9639040315c5c66234fcba1cb9bd80739d",
                 "depositController": "0xbbc887fdeeba38f1ebbdae6d07908a104e543da4",
                 "hotWallet": "0x864faf6156947c730a49c11abf5843c5d304c257",
                 "ERC223":
                 [
                     {
-                        "symbol": "MAGI",
-                        "contract": "0xc5661af817dda04796b5eb5d112f428c283ee555"
+                        "symbol": "ROPSTEN:MAGI",
+                        "contract": "0xdca7faefd26b87a0f5e9d9814b3372819ffd46b9"
                     }
                 ],
                 "ERC721":
                 [
                     {
-                        "symbol": "MCI",
-                        "contract": "0x876b2ca6e4c229521ceacf3e25afac58a5699875",
+                        "symbol": "ROPSTEN:MCI",
+                        "contract": "0x0bead51721ad217311eb97975ce526446346b998",
                         "extAPI":
                         [
                             {
-                                "name": "MCI_setTokenContent",
+                                "name": "ROPSTEN_MCI_setTokenContent",
                                 "type": "sendTransaction",
                                 "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
-                                "args": ["uint256", "uint256", "uint256", "uint256", "uint256", "uint256"],
-                                "selector": "d7ddae90"
+                                "args": ["uint256", "address", "uint256", "uint256", "uint256", "uint256", "uint256"],
+                                "selector": "8447d0cc"
                             },
                             {
-                                "name": "MCI_mint",
+                                "name": "ROPSTEN_MCI_mint",
                                 "type": "sendTransaction",
                                 "sender": "0x068dC580b637D8D2A6C0Bae6c273C5Ff39073833",
                                 "args": ["address", "uint256", "uint256", "uint256", "uint256", "uint256"],
-                                "selector": "299bada0"
+                                "selector": "299bada0",
+                                "customResult": "MCI_mint"
+                            },
+                            {
+                                "name": "ROPSTEN_MCI_tokenContent",
+                                "type": "call",
+                                "args": ["uint256"],
+                                "selector": "3969a1a5",
+                                "customResult": "MCI_tokenContent"
                             }
                         ]
                     }
@@ -149,7 +150,6 @@ ERC-223 and ERC-721 tokens supported by the SERVER are configurable.
 
 This API call is used to create/query for deposit address of the specified user.
 The address is returned immediately (synchronously) if it was generated earlier.
-Otherwise the address is sent asynchronously within `address` notification.
 
 ### Parameters
 
@@ -194,64 +194,92 @@ Example:
         }
     }
 
-## `address` notification
+## `list-deposits` method
 
-This notification is sent to the counterparty when asynchronous deposit address
-generation is finished. For ETH and ETH-based tokens it means that a child
-contract is deployed (which can take some amount of time).
+This API call is used to get a list of incoming payments (deposits). All
+deposits are numbered (1-based) in order of detection. This method returns
+limited list of deposits starting from the specified sequential number.
 
-### Parameters (named)
+### Parameters
 
-- `userid` - numeric user id;
-- `coin` - coin name;
-- `address` - the address.
+- `start` - sequential number of the first returned deposit (default: 1);
+- `limit` - number of returned deposits (default: 25).
 
-### Expected response
+Example:
 
-No response is expected since it's a notification in terms of JSON RPC 2.0. This
-notification MAY be lost for some reason, so the counterparty SHOULD repeat the
-`get-address` request until the address is returned (probably, synchronously,
-if notification was sent but not delivered properly).
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "list-deposits",
+        "params":
+        {
+            "start": 1
+        }
+    }
 
-## `deposit` notification
+### Response:
 
-Technically, it's not a notification in terms of JSON RPC 2.0. It's a request
-which requires a response. It's sent from SERVER to its counterparty when
-a deposit is detected.
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result":
+        [
+            {
+                "amount": null,
+                "blockNumber": 8280928,
+                "coin": "MCI",
+                "no": 1,
+                "tokenContent":
+                [
+                    "0x0000000000000000000000000000000000000000000000000000000000000001",
+                    "0x0000000000000000000000000000000000000000000000000000000000000002",
+                    "0x0000000000000000000000000000000000000000000000000000000000000003",
+                    "0x0000000000000000000000000000000000000000000000000000000000000004",
+                    "0x0000000000000000000000000000000000000000000000000000000000000005"
+                ],
+                "tokenId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "txid": "0x51485066c747e5018abf621a693c3e505ec0dcc3aebf1c3c5e1b39c8fe51812e",
+                "userid": 666,
+                "vout": 7
+            },
+            {
+                "amount": "0xde0b6b3a7640000",
+                "blockNumber": 8281272,
+                "coin": "ETH",
+                "no": 2,
+                "tokenContent": null,
+                "tokenId": null,
+                "txid": "0x62ea439baf5d147f71cf9c8a9913ca67e2c7581c9dc9cd4fd54773c2ddd373fb",
+                "userid": 666,
+                "vout": 15
+            }
+        ]
+    }
 
-### Parameters (named)
+Notes:
 
-- `userid` - numeric user id;
-- `coin` - name of coin;
-- `amount` - value of deposit in atomic units, null for non-fungible tokens;
-- `tokenId` - id of token, null for fungible tokens.
-
-### Expected response
-
-Boolean value `true` signifies that the deposit was accepted by the counterparty.
-In any other case (including an absence of any response) the counterparty would
-be notified again later.
-
-### Security considerations
-
-Counterparty MUST take measures against multiple crediting of the same deposit.
-It MAY happen due to natural causes (loss of a response) or replay attack
-performed by a malefactor.
-
+- `amount` is `null` for non-fungible (e.g. ERC721) tokens; for fungible tokens
+(ETH, ERC223 tokens etc...) amount is expressed in atomic units (e.g. wei for
+ETH);
+- `tokenId` is `null` for fungible tokens;
+- `tokenContent` is MCI-specific field containing 5 integers describing MCI
+token content; it's `null` for all other coins;
+- `vout` along with `txid` uniquely identifies a payment within blockchain;
+`txid` alone can't be used to identify payment since single transaction may
+perform several payments.
 
 # Hot wallet related API
 
 ## `send` method
 
-All `send` requests are performed asynchronously. The counterparty assigns a
-unique id (UUID) of the send request. When the request is finished, a
-notification is sent to the counterparty with information about transaction
-(including - but not limited to - transaction hash and block height).
+All `send` (and send-like) requests are performed asynchronously. The
+counterparty assigns a unique id (UUID) of the send request. Status of
+the request execution can be checked with `get-tx-status` request using
+the unique id.
 
 ### Parameters
 
-- `uuid` - UUID of the request, can be used in `get-tx-status` request,
-  included into `tx-confirmed` notification;
+- `uuid` - UUID of the request, can be used in `get-tx-status` request;
 - `coin` - coin name;
 - `amount` - value of transfer in atomic units, null for non-fungible tokens;
   if not null, MUST be passed as string in decimal or hexadecimal (with prefix
@@ -305,13 +333,11 @@ request:
 - it's asynchronous;
 - it has UUID;
 - its status may be polled with `get-tx-status` method;
-- required fee may be estimated with `estimate-fee` method;
-- `tx-confirmed` notification is sent.
+- required fee may be estimated with `estimate-fee` method.
 
 ### Parameters
 
-- `uuid` - UUID of the request, can be used in `get-tx-status` request,
-  included into `tx-confirmed` notification;
+- `uuid` - UUID of the request, can be used in `get-tx-status` request;
 - `args` - array of arguments of `setTokenContent` function. `uint256` arguments
   MUST be passed as strings in decimal or hexadecimal (with prefix `0x`) form.
   Fixed-length arrays must be passed inlined (i.e. `uint256[2]` as two `uint256`
@@ -328,8 +354,7 @@ MagicChain721 contract instance.
 
 ### Parameters
 
-- `uuid` - UUID of the request, can be used in `get-tx-status` request,
-  included into `tx-confirmed` notification;
+- `uuid` - UUID of the request, can be used in `get-tx-status` request;
 - `args` - array of arguments of `mint` function. `uint256` arguments MUST be
   passed as strings in decimal or hexadecimal (with prefix `0x`) form. `string`
   arguments are passed as is (respecting JSON escaping rules). Fixed-length
@@ -339,10 +364,49 @@ MagicChain721 contract instance.
 
 See `send` method above.
 
+## `MCI_tokenContent` method
+
+This method is Magicchain-specific. It's used to call `tokenContent` function
+of the MagicChain721 contract instance without transaction invocation (using
+`eth_call` Ethereum API). Result is returned immediately.
+
+### Parameters
+
+- `args` - array of arguments of `tokenContent` function.
+
+Example:
+
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "MCI_tokenContent",
+        "params":
+        [
+            [
+                "1"
+            ]
+        ]
+    }
+
+### Response
+
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result":
+        [
+            "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "0x0000000000000000000000000000000000000000000000000000000000000003",
+            "0x0000000000000000000000000000000000000000000000000000000000000004",
+            "0x0000000000000000000000000000000000000000000000000000000000000005"
+        ]
+    }
+
 ## `get-tx-status` method
 
-This is a polling version of `tx-confirmed` notification. In any case it
-returns immediately.
+Returns status of previously sent send-like request (`send`,
+`MCI_setTokenContent`, `MCI_mint`).
 
 ### Parameters
 
@@ -368,9 +432,32 @@ Example:
         "result":
         {
             "uuid": "394b7137-8b8e-4f87-b95e-ddb5b516232f",
-            "txhash": "0x85235f1a6438b97742d042d3ee1380ecc49fbae29d4a8270cb81088f55f9ebbc",
-            "height": 7654321,
-            "confirmed": true
+            "result":
+            {
+                "txhash": "0x85235f1a6438b97742d042d3ee1380ecc49fbae29d4a8270cb81088f55f9ebbc"
+            },
+            "confirmed": true,
+            "error": null,
+            "pending": false
+        }
+    }
+
+### Response (`MCI_mint` specific)
+
+    {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result":
+        {
+            "uuid": "ac424963-e81b-4537-a6de-6d8f5be9cb07",
+            "result":
+            {
+                "tokenId": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "txhash": "0x51485066c747e5018abf621a693c3e505ec0dcc3aebf1c3c5e1b39c8fe51812e"
+            },
+            "confirmed": true,
+            "error": null,
+            "pending": false
         }
     }
 
@@ -382,7 +469,9 @@ Example:
         "result":
         {
             "uuid": "394b7137-8b8e-4f87-b95e-ddb5b516232f",
-            "confirmed": false
+            "confirmed": false,
+            "error": null,
+            "pending": true
         }
     }
 
@@ -427,31 +516,3 @@ Example:
         }
     }
 
-## `tx-confirmed` notification
-
-This notification is sent when some transaction issued by the SERVER is finally
-confirmed. No response is expected. If the notification is not delivered to the
-counterparty for some reason, it will NOT be sent again. That's why "polling
-version" of this notification does exist (`get-tx-status` request).
-
-### Parameters (named)
-
-- `uuid` - UUID of send request;
-- `txhash` - hash of the transaction;
-- `height` - height of block which includes the transaction.
-
-# Miscelanneous API
-
-## `get-status` method
-
-TODO: balance of deposit controller (creator of sub-contracts)
-
-TODO: balance of the hot wallet
-
-TODO: number of pending address requests
-
-TODO: number of pending send (and other) requests
-
-TODO: status of node(s)
-
-TODO: gas price(s)
