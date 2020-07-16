@@ -17,4 +17,4 @@ class GetTxStatus:
         elif tx.status==0:
             return dict(uuid=uuid, confirmed=True, pending=False, error=None, result=tx.result)
         else:
-            return dict(uuid=uuid, confirmed=False, pendiing=False, error=status)
+            return dict(uuid=uuid, confirmed=False, pendiing=False, error=tx.status)
