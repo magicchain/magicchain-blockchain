@@ -49,7 +49,7 @@ contractInterface=compiledSol["contracts"][srcContrPath+":"+deployedContactName]
 
 if(deployerAddress=="0"):
     deployerAddress = ipcCon.eth.coinbase
-elif deployerAddress!=ipcCon.eth.coinbase:
+else:
     deployerAddress=ipcCon.toChecksumAddress(deployerAddress)
 print(deployerAddress)
 print(srcContrPath+":"+contractName)
