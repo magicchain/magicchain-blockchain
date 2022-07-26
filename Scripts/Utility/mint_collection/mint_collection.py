@@ -8,11 +8,25 @@ import os
 import requests
 import magic
 import uuid
+import io
+from PIL import Image
 import my
 
 (caller_prv, caller_address) = my.privkey.get_private_key_and_address(my.config.contracts.caller)
 
 MintMe = my.Contract("MintMe", my.config.contracts.MintMe)
+
+def scale_down_image(data, scale_factor):
+    img = Image.open(io.BytesIO(data))
+    w, h = img.size
+    new_w, new_h = round(w/scale_factor), round(h/scale_factor)
+
+    img = img.resize((new_w, new_h), Image.ANTIALIAS)
+
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+
+    return buf.getvalue()
 
 def add_action(content, ge):
     a = my.actions.create("call_method_mint",
@@ -27,18 +41,30 @@ def add_action(content, ge):
 
 def mint(image, title, description, ge):
     img_data = open(os.path.join(my.config.source.image_dir, image), "rb").read()
-    mime_type = magic.from_buffer(img_data, mime = True)
+    img_mime_type = magic.from_buffer(img_data, mime=True)
 
     r = requests.post(my.config.storage.url,
                       data=img_data,
-                      headers={"Content-Type": mime_type})
+                      headers={"Content-Type": img_mime_type})
     r.raise_for_status()
     img_cid = r.text.strip()
+
+    if hasattr(my.config.source, "cover_scale_factor") and abs(float(my.config.source.cover_scale_factor)-1.0)>1.0E-7:
+        cover_data = scale_down_image(img_data, float(my.config.source.cover_scale_factor))
+        cover_mime_type = magic.from_buffer(cover_data, mime=True)
+
+        r = requests.post(my.config.storage.url,
+                          data=cover_data,
+                          headers={"Content-Type": cover_mime_type})
+        r.raise_for_status()
+        cover_cid = r.text.strip()
+    else:
+        cover_cid = img_cid
 
     r = requests.post(my.config.storage.url,
                       json={"name":         title,
                             "description":  description,
-                            "image":        f"ipfs://{img_cid}",
+                            "image":        f"ipfs://{cover_cid}",
                             "content":      f"ipfs://{img_cid}",
                             "external_url": f"https://mintme.global/token/{my.config.contracts.blockchain}/{my.config.contracts.MintMe}/{uuid.uuid4()}"})
     r.raise_for_status()
