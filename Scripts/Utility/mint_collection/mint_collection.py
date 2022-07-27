@@ -7,7 +7,7 @@ import csv
 import os
 import requests
 import magic
-import uuid
+import uuid as uuidlib
 import io
 from PIL import Image
 import my
@@ -61,12 +61,14 @@ def mint(image, title, description, ge):
     else:
         cover_cid = img_cid
 
+    uuid = uuidlib.uuid5(uuidlib.UUID("2d9ee027-6b51-4423-b12e-cab42871e6e1"), f"{img_cid}:{title}:{description}")
+
     r = requests.post(my.config.storage.url,
                       json={"name":         title,
                             "description":  description,
                             "image":        f"ipfs://{cover_cid}",
                             "content":      f"ipfs://{img_cid}",
-                            "external_url": f"https://mintme.global/token/{my.config.contracts.blockchain}/{my.config.contracts.MintMe}/{uuid.uuid4()}"})
+                            "external_url": f"https://mintme.global/token/{my.config.contracts.blockchain}/{my.config.contracts.MintMe}/{uuid}"})
     r.raise_for_status()
     content = r.text.strip()
 
