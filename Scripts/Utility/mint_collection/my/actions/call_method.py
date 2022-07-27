@@ -61,7 +61,7 @@ class call_method(my.actions.action):
                                     sender_prv = caller_prv,
                                     receiver   = contract.address,
                                     value      = value,
-                                    gas_price  = tx["maxFeePerGas"],
+                                    gas_price  = tx.get("gasPrice") or tx.get("maxFeePerGas"),
                                     gas_limit  = None,
                                     payload    = tx["data"],
                                     **kwargs)
